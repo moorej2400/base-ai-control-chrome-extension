@@ -1,0 +1,4 @@
+# Per-run artifacts — regenerated every run, never committed.
+events.ndjson
+report.json
+report.txt

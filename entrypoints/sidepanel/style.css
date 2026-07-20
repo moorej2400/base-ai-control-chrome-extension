@@ -1,0 +1,2008 @@
+/* =========================================================================
+   J Chat side panel — design system
+   -------------------------------------------------------------------------
+   Pixel-faithful port of the "J Chat v3" mockup. Colors come entirely from
+   CSS custom properties set by ThemeProvider (see theme/tokens.ts); never
+   hard-code a color here. Classes are intentionally generic + reusable so
+   screens compose them rather than re-declaring one-off inline styles.
+   ========================================================================= */
+
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;450;500;600;700&display=swap');
+
+/* ----- reset ----- */
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+:root {
+  font-size: 14px;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  font-family: 'IBM Plex Sans', system-ui, -apple-system, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  background: var(--bg);
+  color: var(--text);
+}
+
+.mono {
+  font-family: 'IBM Plex Mono', monospace;
+}
+
+/* ----- scrollbars ----- */
+.jc-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: var(--border2) transparent;
+}
+.jc-scroll::-webkit-scrollbar {
+  width: 8px;
+}
+.jc-scroll::-webkit-scrollbar-thumb {
+  background: var(--border2);
+  border-radius: 8px;
+  border: 2px solid transparent;
+  background-clip: content-box;
+}
+.jc-scroll::-webkit-scrollbar-thumb:hover {
+  background: var(--dim);
+  background-clip: content-box;
+}
+
+/* ----- keyframes ----- */
+@keyframes jc-blink {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.15;
+  }
+}
+@keyframes jc-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+@keyframes jc-rise {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@keyframes jc-dot {
+  0%,
+  80%,
+  100% {
+    opacity: 0.3;
+    transform: scale(0.8);
+  }
+  40% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+/* =========================================================================
+   Panel shell
+   ========================================================================= */
+.panel {
+  height: 100%;
+  background: var(--bg);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  position: relative;
+}
+
+/* App header (always visible above every screen) */
+.app-header {
+  flex: none;
+  height: 52px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 12px 0 14px;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg);
+}
+
+.app-logo {
+  width: 24px;
+  height: 24px;
+  border: none;
+  padding: 0;
+  border-radius: 7px;
+  background: var(--accent);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  box-shadow: 0 1px 2px var(--accent-glow);
+  cursor: pointer;
+}
+.app-logo span {
+  font-family: 'IBM Plex Mono', monospace;
+  font-weight: 600;
+  font-size: 14px;
+  color: #fff;
+  line-height: 1;
+}
+
+.app-title {
+  flex: 1;
+  min-width: 0;
+}
+.app-title .t {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+  line-height: 1.2;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.app-title .m {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 10px;
+  color: var(--faint);
+  line-height: 1.3;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Screen body + sub-screen header rows */
+.screen {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+.screen-scroll {
+  flex: 1;
+  overflow-y: auto;
+}
+
+.screen-head {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 12px 8px;
+}
+.screen-head.tight {
+  gap: 6px;
+  padding: 12px 14px 10px;
+}
+.screen-head .title {
+  flex: 1;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text);
+}
+.screen-subtext {
+  font-size: 11.5px;
+  color: var(--faint);
+  line-height: 1.5;
+}
+
+/* =========================================================================
+   Primitives
+   ========================================================================= */
+
+/* Icon button (header + inline actions) */
+.icon-btn {
+  width: 32px;
+  height: 32px;
+  border: none;
+  background: none;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: var(--mid);
+  flex: none;
+}
+.icon-btn:hover {
+  background: var(--hover);
+}
+.icon-btn.sm {
+  width: 28px;
+  height: 28px;
+  border-radius: 7px;
+}
+.icon-btn.back {
+  width: 30px;
+  height: 30px;
+  margin-left: -4px;
+}
+.icon-btn.dim {
+  color: var(--dim);
+}
+.icon-btn.dim:hover {
+  color: var(--mid);
+}
+
+/* Buttons */
+.btn {
+  font: inherit;
+  font-family: inherit;
+  border-radius: 8px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  border: 1px solid var(--border2);
+  background: var(--surface);
+  color: var(--text2);
+  height: 32px;
+  padding: 0 13px;
+  font-size: 12.5px;
+  font-weight: 500;
+}
+.btn:hover {
+  background: var(--hover);
+}
+.btn-primary {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: #fff;
+  font-weight: 600;
+}
+.btn-primary:hover {
+  background: var(--accent-hover);
+}
+.btn-accent-soft {
+  border-color: var(--accent-tint-bd);
+  background: var(--accent-tint);
+  color: var(--accent-text);
+  font-weight: 600;
+}
+.btn-accent-soft:hover {
+  background: var(--accent-tint);
+}
+.btn-danger-ghost {
+  border: none;
+  background: none;
+  color: var(--err-btn);
+  font-weight: 500;
+}
+.btn-danger-ghost:hover {
+  background: var(--err-bg);
+}
+.btn-sm {
+  height: 28px;
+  padding: 0 11px;
+  font-size: 12px;
+}
+.btn-block {
+  width: 100%;
+}
+.btn:disabled {
+  cursor: default;
+  opacity: 0.55;
+}
+
+/* iOS-style toggle */
+.toggle {
+  width: 40px;
+  height: 23px;
+  border: none;
+  border-radius: 999px;
+  position: relative;
+  cursor: pointer;
+  padding: 0;
+  transition: background 0.18s;
+  flex: none;
+  background: var(--border2);
+}
+.toggle[data-on='true'] {
+  background: var(--accent);
+}
+.toggle .knob {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 19px;
+  height: 19px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.25);
+  transition: left 0.18s;
+}
+.toggle[data-on='true'] .knob {
+  left: 19px;
+}
+
+/* Section label (mono, uppercase) */
+.section-label {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 9.5px;
+  color: var(--dim);
+  letter-spacing: 0.05em;
+  padding: 18px 2px 8px;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+.section-label.flush {
+  padding-top: 6px;
+}
+
+/* Grouped list container (settings rows) */
+.group {
+  border: 1px solid var(--border);
+  border-radius: 11px;
+  background: var(--surface);
+  overflow: hidden;
+}
+.row {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  padding: 11px;
+  border-bottom: 1px solid var(--chip);
+}
+.row:last-child {
+  border-bottom: none;
+}
+.row.clickable {
+  cursor: pointer;
+}
+.row.clickable:hover {
+  background: var(--raised);
+}
+.row-icon {
+  width: 26px;
+  height: 26px;
+  border-radius: 7px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  flex: none;
+  color: var(--text2);
+}
+.row-grow {
+  flex: 1;
+  min-width: 0;
+}
+.row-title {
+  font-size: 13px;
+  color: var(--text2);
+  font-weight: 500;
+}
+.row-sub {
+  font-size: 10.5px;
+  color: var(--faint);
+}
+.row-value {
+  font-size: 12px;
+  color: var(--faint);
+}
+.row-value.mono {
+  font-size: 11px;
+}
+
+/* Card (free-form) */
+.card {
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface);
+  padding: 12px;
+}
+
+/* Badge / pill */
+.badge {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 10px;
+  color: var(--mid);
+  background: var(--chip);
+  padding: 2px 6px;
+  border-radius: 5px;
+  white-space: nowrap;
+}
+.badge-accent {
+  font-size: 8.5px;
+  font-weight: 600;
+  color: var(--accent-text);
+  background: var(--accent-tint);
+  border: 1px solid var(--accent-tint-bd);
+  padding: 1px 5px;
+  letter-spacing: 0.04em;
+}
+.badge-risk {
+  font-size: 9px;
+  color: var(--err-title);
+  background: var(--err-bg);
+  border: 1px solid var(--err-bd);
+  padding: 1px 5px;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+}
+
+/* Slider (range) */
+.slider {
+  width: 100%;
+  accent-color: var(--accent);
+  cursor: pointer;
+}
+.slider-scale {
+  display: flex;
+  justify-content: space-between;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 9.5px;
+  color: var(--dim);
+  margin-top: 4px;
+}
+
+/* Segmented control */
+.segmented {
+  display: flex;
+  gap: 4px;
+  padding: 4px;
+  background: var(--raised);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+}
+.segmented.bare {
+  background: none;
+  border: none;
+  padding: 0;
+  gap: 6px;
+}
+.segmented button {
+  flex: 1;
+  height: 32px;
+  border: 1px solid transparent;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--mid);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: inherit;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+.segmented button[data-on='true'] {
+  background: var(--surface);
+  color: var(--text);
+}
+.segmented.bare button {
+  height: 28px;
+  font-weight: 500;
+  border-color: var(--border2);
+  background: var(--surface);
+}
+.segmented.bare button[data-on='true'] {
+  background: var(--accent-tint);
+  border-color: var(--accent-tint-bd);
+  color: var(--accent-text);
+}
+
+/* Text inputs */
+.input {
+  width: 100%;
+  height: 38px;
+  padding: 0 11px;
+  border: 1px solid var(--border2);
+  border-radius: 10px;
+  background: var(--surface);
+  font-size: 13.5px;
+  color: var(--text2);
+  outline: none;
+  font-family: inherit;
+}
+.input:focus {
+  border-color: var(--accent-tint-bd);
+  box-shadow: var(--focus-ring);
+}
+.input.mono {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 12px;
+}
+.field-label {
+  display: block;
+  font-size: 11px;
+  color: var(--faint);
+  margin: 0 2px 5px;
+}
+.textarea {
+  width: 100%;
+  padding: 12px;
+  border: 1px solid var(--border2);
+  border-radius: 11px;
+  background: var(--surface);
+  font-size: 12.5px;
+  line-height: 1.6;
+  color: var(--text2);
+  outline: none;
+  resize: none;
+  font-family: inherit;
+}
+.textarea.mono {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 12px;
+}
+.textarea:focus {
+  border-color: var(--accent-tint-bd);
+  box-shadow: var(--focus-ring);
+}
+
+/* Empty / status states */
+.empty-state {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  color: var(--mid);
+  text-align: center;
+  padding: 28px;
+}
+
+/* =========================================================================
+   Chat screen
+   ========================================================================= */
+.chat-scroll {
+  flex: 1;
+  overflow-y: auto;
+  padding: 18px 14px 8px;
+}
+
+/* Context banner */
+.ctx-banner {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 7px 10px;
+  background: var(--chip);
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  margin-bottom: 18px;
+}
+.ctx-banner .label {
+  font-size: 11px;
+  color: var(--mid);
+  flex: 1;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.ctx-banner .count {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 9.5px;
+  color: var(--faint);
+}
+
+/* Messages */
+.msg-user-wrap {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 18px;
+}
+.msg-user {
+  max-width: 84%;
+  background: var(--accent-deep);
+  color: #fff;
+  padding: 9px 13px;
+  border-radius: 14px 14px 4px 14px;
+  font-size: 13.5px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  overflow-wrap: break-word;
+}
+.assistant {
+  margin-bottom: 6px;
+  animation: jc-rise 0.3s ease;
+}
+.answer {
+  font-size: 13.5px;
+  line-height: 1.62;
+  color: var(--text2);
+}
+
+/* Thinking pill */
+.think-pill {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  width: 100%;
+  padding: 7px 10px;
+  background: var(--raised);
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  cursor: pointer;
+  text-align: left;
+  margin-bottom: 7px;
+  font-family: inherit;
+}
+.think-pill[data-open='true'] {
+  background: var(--accent-tint);
+}
+.think-pill .label {
+  flex: 1;
+  font-size: 11.5px;
+  color: var(--mid);
+}
+.think-body {
+  font-size: 12px;
+  line-height: 1.6;
+  color: var(--mid);
+  padding: 2px 10px 12px;
+  border-left: 2px solid var(--border2);
+  margin: 0 0 8px 4px;
+  white-space: pre-wrap;
+  overflow-wrap: break-word;
+  animation: jc-rise 0.2s ease;
+}
+
+/* Tool call card */
+.tool-chip {
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  overflow: hidden;
+  margin-bottom: 10px;
+  background: var(--surface);
+}
+.tool-chip.has-subagent {
+  border-color: var(--accent-tint-bd);
+}
+.tool-chip-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 8px 10px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  text-align: left;
+  font-family: inherit;
+  list-style: none;
+}
+.tool-chip-head::-webkit-details-marker {
+  display: none;
+}
+.tool-stat {
+  width: 16px;
+  height: 16px;
+  border-radius: 5px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  background: var(--ok-tint);
+}
+.tool-stat.running {
+  background: var(--accent-tint);
+}
+.tool-stat.failed {
+  background: var(--err-bg);
+}
+.tool-name {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 11px;
+  color: var(--text2);
+  font-weight: 500;
+  flex: 0 1 auto;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.tool-meta {
+  font-size: 10.5px;
+  color: var(--faint);
+  white-space: nowrap;
+}
+.tool-spacer {
+  flex: 1;
+}
+.tool-chev {
+  color: var(--faint);
+  transition: transform 0.2s;
+  flex: none;
+}
+.tool-chip[open] .tool-chev {
+  transform: rotate(180deg);
+}
+.tool-chip-body {
+  border-top: 1px solid var(--hover);
+  padding: 9px 11px;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 10.5px;
+  line-height: 1.6;
+  color: var(--mid);
+  background: var(--raised);
+}
+.tool-chip-body .k {
+  color: var(--faint);
+}
+.tool-chip-body .v {
+  color: var(--text2);
+  margin-bottom: 8px;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.tool-chip-body .v:last-child {
+  margin-bottom: 0;
+}
+/* Inline screenshot thumbnail inside a tool-call card. */
+.tool-shot {
+  display: block;
+  margin: 2px 0 4px;
+  line-height: 0;
+}
+.tool-shot img {
+  display: block;
+  max-width: 100%;
+  max-height: 260px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  cursor: zoom-in;
+}
+.tool-shot:hover img {
+  border-color: var(--border2);
+}
+
+/* sub-agent nested rail */
+.subagent-rail {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 2px 0 2px;
+  padding: 9px 11px;
+  border-top: 1px solid var(--hover);
+  background: var(--raised);
+}
+.subagent-reason {
+  font-size: 12px;
+  line-height: 1.55;
+  color: var(--mid);
+  white-space: pre-wrap;
+  overflow-wrap: break-word;
+}
+.subagent-empty {
+  font-style: italic;
+  opacity: 0.8;
+  font-size: 11px;
+  color: var(--faint);
+}
+
+/* Apply-to-note diff card */
+.diff-card {
+  border: 1px solid var(--border);
+  border-radius: 11px;
+  overflow: hidden;
+  margin: 12px 0 4px;
+  box-shadow: 0 1px 3px rgba(40, 36, 30, 0.05);
+}
+.diff-head {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 8px 11px;
+  background: var(--raised);
+  border-bottom: 1px solid var(--border);
+}
+.diff-head .title {
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--text2);
+  flex: 1;
+}
+.diff-head .stat {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 9.5px;
+  color: var(--faint);
+}
+.diff-body {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 10.5px;
+  line-height: 1.65;
+  padding: 9px 4px;
+}
+.diff-line {
+  display: flex;
+  padding: 1px 9px;
+}
+.diff-line.del {
+  background: var(--del-bg);
+}
+.diff-line.add {
+  background: var(--add-bg);
+}
+.diff-line .mark {
+  width: 14px;
+  flex: none;
+}
+.diff-line.del .mark {
+  color: var(--del-mark);
+}
+.diff-line.add .mark {
+  color: var(--add-mark);
+}
+.diff-line.del .txt {
+  color: var(--del);
+  text-decoration: line-through;
+}
+.diff-line.add .txt {
+  color: var(--add);
+}
+.diff-actions {
+  display: flex;
+  gap: 7px;
+  padding: 9px 11px;
+  border-top: 1px solid var(--hover);
+}
+
+/* Message action row */
+.msg-actions {
+  display: flex;
+  gap: 2px;
+  margin-top: 8px;
+}
+.msg-actions .spacer {
+  flex: 1;
+}
+
+/* Inline error / retry */
+.err-card {
+  display: flex;
+  gap: 9px;
+  padding: 11px 12px;
+  background: var(--err-bg);
+  border: 1px solid var(--err-bd);
+  border-radius: 11px;
+}
+.err-card .title {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--err-title);
+  margin-bottom: 2px;
+}
+.err-card .text {
+  font-size: 11.5px;
+  line-height: 1.5;
+  color: var(--err-text);
+}
+.err-btn {
+  height: 27px;
+  padding: 0 11px;
+  border: none;
+  border-radius: 7px;
+  background: var(--err-btn);
+  color: #fff;
+  font-size: 11.5px;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: inherit;
+}
+.err-btn:hover {
+  background: var(--err-btn-hover);
+}
+.err-btn.ghost {
+  border: 1px solid var(--err-btn-bd);
+  background: var(--surface);
+  color: var(--err-title);
+  font-weight: 500;
+}
+
+/* thinking dots (submitted, pre-stream) */
+.thinking-dots {
+  display: inline-flex;
+  gap: 4px;
+  padding: 4px 2px;
+}
+.thinking-dots span {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--faint);
+  animation: jc-dot 1.2s ease-in-out infinite both;
+}
+.thinking-dots span:nth-child(2) {
+  animation-delay: 0.2s;
+}
+.thinking-dots span:nth-child(3) {
+  animation-delay: 0.4s;
+}
+
+/* =========================================================================
+   Composer
+   ========================================================================= */
+.composer-wrap {
+  flex: none;
+  position: relative;
+  border-top: 1px solid var(--border);
+  background: var(--bg);
+  padding: 10px 12px 11px;
+}
+
+/* Quick settings rollout */
+.quick-roll {
+  overflow: hidden;
+  min-height: 0;
+  transition:
+    max-height 0.3s cubic-bezier(0.32, 0.72, 0, 1),
+    opacity 0.22s ease;
+}
+/* Compact 2-column tile grid (MODEL / MODE / STYLE / PRESET + SCOPE / CONTROL). */
+.quick-grid {
+  position: relative;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+  margin-bottom: 10px;
+}
+.quick-tile {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  padding: 9px 11px;
+  border: 1px solid var(--border2);
+  border-radius: 10px;
+  background: var(--surface);
+  cursor: pointer;
+  text-align: left;
+  font-family: inherit;
+}
+.quick-tile:hover {
+  border-color: var(--accent-tint-bd);
+  background: var(--raised);
+}
+.quick-tile .top {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.quick-tile .dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 2px;
+  flex: none;
+}
+.quick-tile .k {
+  font-size: 8.5px;
+  color: var(--dim);
+  font-family: 'IBM Plex Mono', monospace;
+  letter-spacing: 0.09em;
+}
+.quick-tile .bottom {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.quick-tile .v {
+  flex: 1;
+  min-width: 0;
+  font-size: 12.5px;
+  color: var(--text);
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.quick-tile .chev {
+  color: var(--faint);
+  flex: none;
+  transition: transform 0.2s;
+}
+.quick-tile[data-open='true'] .chev {
+  transform: rotate(180deg);
+}
+
+/* SCOPE + CONTROL: half-width vertical toggle tiles (label on top, control
+   below), matching the MODEL/MODE tiles so they sit one-per-column on one row. */
+.quick-toggle {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 9px 11px;
+  border: 1px solid var(--border2);
+  border-radius: 10px;
+  background: var(--surface);
+}
+.quick-toggle .top {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.quick-toggle .dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 2px;
+  flex: none;
+}
+.quick-toggle .k {
+  font-size: 8.5px;
+  color: var(--dim);
+  font-family: 'IBM Plex Mono', monospace;
+  letter-spacing: 0.09em;
+}
+.quick-toggle .seg {
+  display: flex;
+}
+.quick-toggle .seg .segmented {
+  width: 100%;
+}
+.quick-toggle .seg .segmented button {
+  white-space: nowrap;
+  padding: 0 6px;
+}
+
+/* Staggered slot-in when the quick panel opens; collapse together on close. */
+.quick-grid .quick-tile,
+.quick-grid .quick-toggle {
+  opacity: 0;
+  transform: translateY(10px) scale(0.97);
+  transition:
+    opacity 0.34s cubic-bezier(0.22, 0.61, 0.36, 1),
+    transform 0.42s cubic-bezier(0.22, 1.2, 0.36, 1);
+}
+.quick-grid[data-open='true'] .quick-tile,
+.quick-grid[data-open='true'] .quick-toggle {
+  opacity: 1;
+  transform: translateY(0) scale(1);
+}
+.quick-grid[data-open='true'] .quick-tile:nth-child(1) {
+  transition-delay: 60ms;
+}
+.quick-grid[data-open='true'] .quick-tile:nth-child(2) {
+  transition-delay: 125ms;
+}
+.quick-grid[data-open='true'] .quick-tile:nth-child(3) {
+  transition-delay: 190ms;
+}
+.quick-grid[data-open='true'] .quick-tile:nth-child(4) {
+  transition-delay: 255ms;
+}
+.quick-grid[data-open='true'] .quick-toggle:nth-child(5) {
+  transition-delay: 320ms;
+}
+.quick-grid[data-open='true'] .quick-toggle:nth-child(6) {
+  transition-delay: 385ms;
+}
+
+/* Model picker popup (anchored under the MODEL tile). */
+.model-menu-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 29;
+}
+.model-menu {
+  position: fixed;
+  background: var(--surface);
+  border: 1px solid var(--border2);
+  border-radius: 10px;
+  box-shadow:
+    0 14px 36px -10px var(--panel-shadow),
+    0 0 0 1px rgba(40, 36, 30, 0.04);
+  padding: 5px;
+  z-index: 30;
+  max-height: 300px;
+  overflow-y: auto;
+  transform-origin: top center;
+  opacity: 0;
+  transform: translateY(-8px) scale(0.975);
+}
+/* Enter: panel drops + scales in. Exit: lifts + scales down as one unit. */
+.model-menu[data-phase='open'] {
+  opacity: 1;
+  transform: translateY(0) scale(1);
+  transition:
+    opacity 0.2s ease,
+    transform 0.36s cubic-bezier(0.2, 0.9, 0.3, 1);
+}
+.model-menu[data-phase='out'] {
+  opacity: 0;
+  transform: translateY(-5px) scale(0.97);
+  transition:
+    opacity 0.17s cubic-bezier(0.4, 0, 1, 1),
+    transform 0.2s cubic-bezier(0.4, 0, 1, 1);
+}
+.model-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  margin: 1.5px 0;
+  padding: 7px 8px;
+  border: none;
+  background: transparent;
+  border-radius: 7px;
+  cursor: pointer;
+  text-align: left;
+  font-family: inherit;
+  opacity: 0;
+  transform: translateY(-10px);
+}
+/* Enter: each row slots down from above + fades, staggered (delay set inline). */
+.model-menu[data-phase='open'] .model-menu-item {
+  opacity: 1;
+  transform: translateY(0);
+  transition:
+    opacity 0.3s ease,
+    transform 0.44s cubic-bezier(0.22, 1.32, 0.36, 1);
+}
+.model-menu[data-phase='out'] .model-menu-item {
+  opacity: 0;
+  transition: opacity 0.12s ease;
+}
+.model-menu-item[data-selected='true'] {
+  background: var(--accent-tint);
+}
+/* Active (hover / keyboard) wins over the selected tint, matching the mock. */
+.model-menu-item:hover,
+.model-menu-item[data-active='true'] {
+  background: var(--hover);
+}
+.model-menu-item .dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 2px;
+  flex: none;
+}
+.model-menu-item .grow {
+  flex: 1;
+  min-width: 0;
+}
+.model-menu-item .label {
+  display: block;
+  font-size: 12px;
+  color: var(--text);
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.model-menu-item .sub {
+  display: block;
+  font-size: 9px;
+  color: var(--faint);
+  font-family: 'IBM Plex Mono', monospace;
+}
+.model-menu-div {
+  height: 1px;
+  background: var(--border);
+  margin: 4px 8px;
+  transform: scaleY(0.5);
+}
+
+/* Section header inside the model / quick popovers (vendor or provider name). */
+.model-menu-sec {
+  padding: 7px 10px 3px;
+  font-size: 9.5px;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--faint);
+}
+.model-menu-sec:first-child {
+  padding-top: 4px;
+}
+
+/* Context chips */
+.chips {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 8px;
+  flex-wrap: wrap;
+}
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 24px;
+  padding: 0 9px;
+  background: var(--accent-tint);
+  border: 1px solid var(--accent-tint-bd);
+  border-radius: 7px;
+  font-size: 11px;
+  color: var(--accent-text);
+  font-weight: 500;
+}
+.chip-add {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 24px;
+  padding: 0 9px;
+  background: none;
+  border: 1px dashed var(--border2);
+  border-radius: 7px;
+  font-size: 11px;
+  color: var(--mid);
+  cursor: pointer;
+  font-family: inherit;
+}
+.chip-add:hover {
+  border-color: var(--dim);
+}
+.chip .x {
+  opacity: 0.55;
+  cursor: pointer;
+  display: inline-flex;
+}
+
+/* Slash autosuggest */
+.slash-pop {
+  background: var(--surface);
+  border: 1px solid var(--border2);
+  border-radius: 12px;
+  box-shadow: 0 12px 30px -10px var(--panel-shadow);
+  padding: 5px;
+  margin-bottom: 8px;
+  overflow: hidden;
+}
+.slash-pop .head {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 9.5px;
+  color: var(--dim);
+  letter-spacing: 0.05em;
+  padding: 5px 8px 6px;
+}
+.slash-item {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  width: 100%;
+  padding: 8px;
+  border: none;
+  background: none;
+  border-radius: 9px;
+  cursor: pointer;
+  text-align: left;
+  font-family: inherit;
+}
+.slash-item:hover {
+  background: var(--raised);
+}
+.slash-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 3px;
+  flex: none;
+}
+
+/* Input box */
+.input-box {
+  border: 1px solid var(--border2);
+  border-radius: 13px;
+  background: var(--surface);
+  padding: 9px 10px 7px;
+  transition:
+    border-color 0.15s,
+    box-shadow 0.15s;
+}
+.input-box.focused {
+  border-color: var(--accent-tint-bd);
+  box-shadow: var(--focus-ring);
+}
+.input-box textarea {
+  width: 100%;
+  border: none;
+  outline: none;
+  resize: none;
+  font-size: 13.5px;
+  line-height: 1.5;
+  color: var(--text2);
+  background: none;
+  min-height: 20px;
+  max-height: 120px;
+  font-family: inherit;
+}
+.input-box textarea::placeholder {
+  color: var(--faint);
+}
+.input-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 6px;
+}
+.input-row .spacer {
+  flex: 1;
+}
+.send-btn {
+  width: 30px;
+  height: 30px;
+  border: none;
+  border-radius: 9px;
+  background: var(--send-off);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.send-btn[data-active='true'] {
+  background: var(--accent);
+}
+.send-btn.stop {
+  background: var(--err-btn);
+}
+
+/* Meta row */
+.meta-row {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin-top: 8px;
+  padding: 0 2px;
+}
+.model-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 24px;
+  padding: 0 8px 0 7px;
+  background: var(--bg);
+  border: 1px solid var(--border2);
+  border-radius: 7px;
+  cursor: pointer;
+  font-family: inherit;
+}
+.model-chip[data-open='true'] {
+  background: var(--hover);
+}
+.model-chip .dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--accent);
+}
+.model-chip .name {
+  font-size: 11px;
+  color: var(--text2);
+  font-weight: 500;
+}
+.meta-row .preset {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 10px;
+  color: var(--faint);
+}
+.meta-row .spacer {
+  flex: 1;
+}
+
+/* Usage trigger + hover panel */
+.usage-trigger {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  height: 24px;
+  cursor: default;
+}
+.usage-cost {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 10px;
+  color: var(--faint);
+}
+.usage-sep {
+  width: 3px;
+  height: 3px;
+  border-radius: 50%;
+  background: var(--dim);
+}
+.usage-bar {
+  display: block;
+  width: 28px;
+  height: 5px;
+  border-radius: 99px;
+  background: var(--chip);
+  overflow: hidden;
+}
+.usage-bar > span {
+  display: block;
+  height: 100%;
+  background: var(--accent);
+  border-radius: 99px;
+}
+.usage-pop {
+  position: absolute;
+  right: -4px;
+  bottom: calc(100% + 9px);
+  width: 236px;
+  background: var(--surface);
+  border: 1px solid var(--border2);
+  border-radius: 13px;
+  box-shadow:
+    0 16px 40px -12px rgba(40, 36, 30, 0.34),
+    0 0 0 1px rgba(40, 36, 30, 0.04);
+  padding: 12px;
+  z-index: 20;
+  animation: jc-rise 0.14s ease;
+}
+.usage-pop .pop-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 9px;
+}
+.usage-pop .cap {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 9.5px;
+  color: var(--dim);
+  letter-spacing: 0.05em;
+}
+.usage-pop .pct {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 10px;
+  color: var(--accent-text);
+  font-weight: 600;
+}
+.usage-pop .track {
+  height: 6px;
+  border-radius: 99px;
+  background: var(--chip);
+  overflow: hidden;
+  margin-bottom: 6px;
+}
+.usage-pop .track > span {
+  display: block;
+  height: 100%;
+  background: var(--accent);
+  border-radius: 99px;
+}
+.usage-pop .scale {
+  display: flex;
+  justify-content: space-between;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 10px;
+  color: var(--faint);
+  margin-bottom: 11px;
+}
+.usage-pop .divider {
+  height: 1px;
+  background: var(--hover);
+  margin: 0 -2px 10px;
+}
+.usage-pop .lines {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+}
+.usage-pop .line {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.usage-pop .line .l {
+  font-size: 11.5px;
+  color: var(--mid);
+}
+.usage-pop .line .r {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 11px;
+  color: var(--text2);
+  font-weight: 500;
+}
+
+/* =========================================================================
+   Sessions
+   ========================================================================= */
+.search-box {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 36px;
+  padding: 0 11px;
+  background: var(--surface);
+  border: 1px solid var(--border2);
+  border-radius: 10px;
+}
+.search-box input {
+  flex: 1;
+  border: none;
+  outline: none;
+  background: none;
+  font-size: 13px;
+  color: var(--text2);
+  font-family: inherit;
+}
+.search-box input::placeholder {
+  color: var(--faint);
+}
+
+.session-pinned {
+  display: flex;
+  gap: 10px;
+  padding: 9px 10px;
+  border: 1px solid var(--border);
+  border-radius: 11px;
+  background: var(--surface);
+  margin-bottom: 8px;
+  cursor: pointer;
+}
+.session-row {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  padding: 9px 10px;
+  border-radius: 11px;
+  margin-bottom: 3px;
+  cursor: pointer;
+  background: transparent;
+}
+.session-row:hover {
+  background: var(--chip);
+}
+.session-row.current {
+  background: var(--chip);
+}
+.session-row .dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  flex: none;
+  background: transparent;
+}
+.session-row.current .dot {
+  background: var(--accent);
+}
+.session-grow {
+  flex: 1;
+  min-width: 0;
+}
+.session-title {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text2);
+  margin-bottom: 1px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.session-pinned .session-title {
+  font-weight: 600;
+  color: var(--text);
+  margin-bottom: 2px;
+}
+.session-snippet {
+  font-size: 11.5px;
+  color: var(--faint);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.session-time {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 9.5px;
+  color: var(--faint);
+  align-self: flex-start;
+  margin-top: 2px;
+  white-space: nowrap;
+}
+.session-pinned .session-time {
+  align-self: center;
+  margin-top: 0;
+}
+.session-del {
+  align-self: center;
+}
+
+/* =========================================================================
+   Settings + providers
+   ========================================================================= */
+.provider-row {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  padding: 10px 11px;
+  border: 1px solid var(--border);
+  border-radius: 11px;
+  background: var(--surface);
+  margin-bottom: 8px;
+  cursor: pointer;
+}
+.provider-row:hover {
+  border-color: var(--accent-tint-bd);
+}
+.provider-avatar {
+  width: 30px;
+  height: 30px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: 'IBM Plex Mono', monospace;
+  font-weight: 600;
+  font-size: 13px;
+  color: var(--text2);
+  flex: none;
+}
+.provider-detail {
+  font-size: 11px;
+  color: var(--faint);
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+.provider-detail .dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+}
+.dashed-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  width: 100%;
+  height: 38px;
+  border: 1px dashed var(--border2);
+  border-radius: 11px;
+  background: none;
+  color: var(--mid);
+  font-size: 12.5px;
+  font-weight: 500;
+  cursor: pointer;
+  font-family: inherit;
+}
+.dashed-btn:hover {
+  border-color: var(--dim);
+  color: var(--mid);
+}
+.dashed-drop {
+  flex: 1;
+  min-height: 240px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  padding: 24px;
+  border: 1.5px dashed var(--border2);
+  border-radius: 13px;
+  background: var(--surface);
+  transition:
+    border-color 0.15s,
+    background 0.15s;
+  text-align: center;
+}
+.dashed-drop.over {
+  border-color: var(--accent);
+  background: var(--accent-tint);
+}
+
+/* Accent swatches */
+.swatches {
+  display: flex;
+  gap: 12px;
+  padding-left: 37px;
+}
+.swatch {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  transition: box-shadow 0.15s;
+}
+
+/* Status pill (provider connected) */
+.status-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11px;
+  padding: 2px 8px;
+  border-radius: 6px;
+  margin-top: 4px;
+  font-weight: 600;
+}
+.status-pill .dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+}
+
+/* Device-code auth */
+.device-code-box {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  width: 100%;
+  padding: 5px 5px 5px 16px;
+  border: 1px solid var(--border2);
+  border-radius: 13px;
+  background: var(--surface);
+  margin-bottom: 16px;
+}
+.device-code {
+  flex: 1;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 26px;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  color: var(--text);
+  text-align: center;
+  user-select: all;
+}
+.device-copy {
+  width: 42px;
+  height: 42px;
+  border: none;
+  border-radius: 9px;
+  background: var(--chip);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: var(--mid);
+  flex: none;
+}
+.device-copy:hover {
+  background: var(--hover);
+  color: var(--accent);
+}
+.waiting {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 11.5px;
+  color: var(--faint);
+  font-family: 'IBM Plex Mono', monospace;
+}
+.waiting .pulse {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--accent);
+  animation: jc-blink 1.4s ease-in-out infinite;
+}
+
+/* Radio option cards (edit behavior) */
+.radio-card {
+  display: flex;
+  align-items: flex-start;
+  gap: 11px;
+  width: 100%;
+  padding: 11px;
+  border: 1px solid var(--border);
+  border-radius: 11px;
+  background: var(--surface);
+  cursor: pointer;
+  text-align: left;
+  font-family: inherit;
+  transition: border-color 0.15s;
+}
+.radio-card[data-on='true'] {
+  border-color: var(--accent-tint-bd);
+  background: var(--accent-tint);
+}
+.radio-dot {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  border: 2px solid var(--border2);
+  flex: none;
+  margin-top: 1px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.radio-card[data-on='true'] .radio-dot {
+  border-color: var(--accent);
+}
+.radio-dot span {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--accent);
+}
+.radio-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+}
+.radio-sub {
+  font-size: 11px;
+  color: var(--faint);
+  line-height: 1.45;
+  margin-top: 2px;
+}
+
+/* Onboarding */
+.onboard {
+  flex: 1;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  padding: 30px 22px;
+}
+.onboard-logo {
+  width: 44px;
+  height: 44px;
+  border-radius: 13px;
+  background: var(--accent);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 18px;
+  box-shadow: 0 4px 14px -3px var(--accent-glow);
+}
+.onboard-logo span {
+  font-family: 'IBM Plex Mono', monospace;
+  font-weight: 600;
+  font-size: 24px;
+  color: #fff;
+}
+
+/* =========================================================================
+   Skills + modes
+   ========================================================================= */
+.skill-pick-card {
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface);
+  padding: 11px 12px;
+  margin-bottom: 9px;
+}
+.skill-pick-card[data-active='true'] {
+  border-color: var(--accent-tint-bd);
+  background: var(--accent-tint);
+}
+.skill-manage-row {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  padding: 11px 12px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface);
+  margin-bottom: 9px;
+  cursor: pointer;
+}
+.skill-manage-row:hover {
+  border-color: var(--accent-tint-bd);
+}
+.skill-ico {
+  width: 30px;
+  height: 30px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+}
+.mode-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface);
+  margin-bottom: 9px;
+  cursor: pointer;
+}
+.mode-row:hover {
+  border-color: var(--accent-tint-bd);
+}
+.mode-ico {
+  width: 34px;
+  height: 34px;
+  border-radius: 9px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 15px;
+  flex: none;
+}
+
+/* =========================================================================
+   Markdown (answer body)
+   ========================================================================= */
+.markdown {
+  overflow-wrap: break-word;
+  line-height: 1.62;
+  font-size: 13.5px;
+  color: var(--text2);
+}
+.markdown > :first-child {
+  margin-top: 0;
+}
+.markdown > :last-child {
+  margin-bottom: 0;
+}
+.markdown p {
+  margin-bottom: 10px;
+}
+.markdown h1,
+.markdown h2,
+.markdown h3,
+.markdown h4 {
+  color: var(--text);
+  margin: 14px 0 6px;
+  font-size: 14px;
+}
+.markdown ul,
+.markdown ol {
+  margin: 0 0 10px 18px;
+}
+.markdown li {
+  margin-bottom: 4px;
+}
+.markdown a {
+  color: var(--accent-text);
+}
+.markdown pre {
+  background: var(--raised);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 10px;
+  overflow-x: auto;
+  font-size: 12px;
+  margin-bottom: 10px;
+}
+.markdown code {
+  font-family: 'IBM Plex Mono', monospace;
+  background: var(--chip);
+  border-radius: 4px;
+  padding: 1px 4px;
+  font-size: 12.5px;
+}
+.markdown pre code {
+  background: none;
+  padding: 0;
+}
+.markdown table {
+  border-collapse: collapse;
+  margin-bottom: 10px;
+}
+.markdown th,
+.markdown td {
+  border: 1px solid var(--border);
+  padding: 4px 8px;
+}
+.markdown blockquote {
+  margin: 0 0 10px;
+  padding-left: 10px;
+  border-left: 3px solid var(--border2);
+  color: var(--mid);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .assistant,
+  .think-body,
+  .usage-pop,
+  .thinking-dots span,
+  .waiting .pulse {
+    animation: none;
+  }
+  .quick-grid .quick-tile,
+  .quick-grid .quick-toggle,
+  .model-menu,
+  .model-menu-item {
+    transition: none !important;
+    transition-delay: 0ms !important;
+    opacity: 1 !important;
+    transform: none !important;
+  }
+}
