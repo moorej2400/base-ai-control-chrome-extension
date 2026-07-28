@@ -35,7 +35,11 @@ symmetric.
 - Outline: white, 1.75 design units, round joins.
 - Shadow: subtle dark drop shadow applied by the page overlay.
 - Source asset: upright, with no `transform` or baked-in angle.
-- Display size: approximately 27 × 30 CSS pixels.
+- Canvas: `viewBox="0 0 41 45"` with
+  `preserveAspectRatio="xMidYMid meet"`.
+- Display size: 30 CSS pixels high with width derived from the viewBox,
+  `30 × 41 / 45 = 27.333…` CSS pixels. Width and height must not be assigned
+  independently in a way that permits non-uniform scaling.
 
 The shape is intentionally closer to a precise desktop pointer than a broad map
 marker. The 33-unit base sits between the reviewed 30- and 36-unit options.
@@ -70,6 +74,10 @@ cursor-arrival acknowledgement.
   notch depth, and absence of a transform in the master asset.
 - Add an overlay test proving the displayed glyph uses the same path and a
   tip-origin `-28deg` rotation.
+- Test hotspot invariance numerically: after applying the glyph offset and the
+  `-28deg` rotation matrix around the tip, the transformed tip must equal the
+  requested overlay coordinate before and after rotation (within floating-point
+  tolerance).
 - Render the upright SVG at multiple sizes and inspect it visually.
 - Reload the real extension, exercise cursor movement between two targets, and
   inspect screenshots to confirm the glyph looks clean and its tip stays on the
