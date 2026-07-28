@@ -11,6 +11,7 @@ import { storageGet } from '@/lib/storage/chrome-storage';
 import { DEFAULT_FAMILY_LABEL_KEY } from '../state/model-menu';
 import { SYSTEM_PROMPT_KEY } from './SystemPromptScreen';
 import { EDIT_SCOPE_KEY, type EditScope } from './EditBehaviorScreen';
+import { getExternalBrowserControlEnabled, setExternalBrowserControlEnabled } from '@/lib/agent-tools/browser-control/settings';
 import Icon from '../ui/Icon';
 import Toggle from '../ui/Toggle';
 import { SectionLabel, Group, Row } from '../ui/SettingsGroup';
@@ -33,11 +34,13 @@ export default function SettingsScreen({ nav }: { nav: Nav }) {
   const [defaultModel, setDefaultModel] = useState('Auto');
   const [systemPrompt, setSystemPrompt] = useState('');
   const [shortcut, setShortcut] = useState('');
+  const [externalBrowserControl, setExternalBrowserControl] = useState(true);
 
   useEffect(() => {
     void storageGet<EditScope>(EDIT_SCOPE_KEY).then((v) => v && setEditScope(v));
     void storageGet<string>(DEFAULT_FAMILY_LABEL_KEY).then((v) => v && setDefaultModel(v));
     void storageGet<string>(SYSTEM_PROMPT_KEY).then((v) => setSystemPrompt(v ?? ''));
+    void getExternalBrowserControlEnabled().then(setExternalBrowserControl);
     try {
       chrome.commands.getAll((cmds) => {
         setShortcut(cmds.find((c) => c.name === 'open-panel')?.shortcut ?? '');
@@ -92,6 +95,33 @@ export default function SettingsScreen({ nav }: { nav: Nav }) {
           <Row iconGlyph="◎" iconTint="var(--blue-tint)" title="Context &amp; retrieval" value={flags.get('ragMemory', false) ? 'RAG memory on' : 'Page + selection'} chevron onClick={() => nav.go('context')} />
           <Row iconGlyph="✓" iconTint="var(--ok-tint)" title="Edit behavior" value={EDIT_SCOPE_LABEL[editScope]} chevron onClick={() => nav.go('editbeh')} />
           <Row iconGlyph="◴" iconTint="var(--warm-tint)" title="Data &amp; privacy" value="Local only" chevron onClick={() => nav.go('privacy')} />
+        </Group>
+
+        <SectionLabel>BROWSER CONTROL</SectionLabel>
+        <Group>
+          <Row
+            iconGlyph="⌁"
+            iconTint="var(--blue-tint)"
+            title="External MCP control"
+            sub="Allow a local Codex/MCP client to share this extension’s browser controller."
+            right={
+              <Toggle
+                on={externalBrowserControl}
+                title="Enable external MCP browser control"
+                onChange={(enabled) => {
+                  setExternalBrowserControl(enabled);
+                  void setExternalBrowserControlEnabled(enabled).then(() => {
+                    // A cold MV3 worker may miss the storage change that woke a prior
+                    // instance, so explicitly reconcile the live native connection.
+                    void chrome.runtime.sendMessage({
+                      type: 'browser-control.external-control.changed',
+                      enabled,
+                    }).catch(() => {});
+                  });
+                }}
+              />
+            }
+          />
         </Group>
 
         <SectionLabel>PREFERENCES</SectionLabel>

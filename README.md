@@ -2,6 +2,15 @@
 
 A Chrome extension that opens an **AI chat side panel** powered by your **GitHub Copilot subscription**. The AI can read the page you're viewing (via tools and an agent loop), stream answers in markdown, keep multiple persisted chat sessions, and drive the browser itself (navigate, click, type, screenshot) as an agent tool.
 
+Browser control defaults on for new in-panel chat sessions and has two clients
+over the same extension-side authority: the
+built-in side-panel agent and a local MCP bridge for Codex or another MCP
+client. External MCP control defaults on and can be explicitly disabled in
+Settings. Both use Chrome CDP first for deterministic snapshots and trusted input,
+with a session-local fallback when Chrome rejects a foreign extension frame, and
+show a visible on-page cursor for agent actions. See
+[Dual-client browser control](docs/DUAL_CLIENT_BROWSER_CONTROL.md).
+
 Built as a general-purpose "AI harness for the browser" with a pluggable skill system — Jira-specific tools (e.g. ticket-quality review) are an example add-on module.
 
 ## Stack

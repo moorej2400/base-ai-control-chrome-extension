@@ -4,7 +4,6 @@ import type { AppUIMessage } from '@/lib/chat/app-message';
 import { LocalChatTransport } from '@/lib/chat/transport';
 import { resolveVariant } from '@/lib/providers/model-groups';
 import { saveSessionMeta } from '@/lib/sessions/store';
-import { DEFAULT_TOOL_MODULES } from '@/lib/tools/registry';
 import { pageToolModule } from '@/lib/tools/page-tools';
 import { BROWSER_CONTROL_MODULE_ID } from '@/lib/agent-tools/browser-control';
 import { generateSessionTitle } from '@/lib/sessions/auto-title';
@@ -133,29 +132,29 @@ export default function ChatScreen({
   const pageToolsAllowedRef = useRef(pageToolsAllowed);
   pageToolsAllowedRef.current = pageToolsAllowed;
 
-  // Dev-only extra tool modules injected via the dev bridge (setToolModules),
-  // so the browser-control e2e harness can enable that opt-in module for a test
-  // run without persisting it or changing DEFAULT_TOOL_MODULES. Empty in prod.
+  // Dev-only extra tool modules injected via the dev bridge (setToolModules)
+  // without persisting them. Empty in production.
   const devToolModulesRef = useRef<string[]>([]);
+  const effectiveToolModules = () => {
+    const base = [
+      ...new Set([
+        ...metaRef.current.enabledToolModules,
+        ...devToolModulesRef.current,
+      ]),
+    ];
+    return pageToolsAllowedRef.current
+      ? base
+      : base.filter((id) => id !== pageToolModule.id);
+  };
 
   const [transport] = useState(
     () =>
       new LocalChatTransport(() => {
-        const base = [
-          ...new Set([
-            ...metaRef.current.enabledToolModules,
-            ...DEFAULT_TOOL_MODULES,
-            ...devToolModulesRef.current,
-          ]),
-        ];
-        const toolModules = pageToolsAllowedRef.current
-          ? base
-          : base.filter((id) => id !== pageToolModule.id);
         return {
           sessionId: session.id,
           providerId: metaRef.current.providerId,
           modelId: resolvedRef.current,
-          toolModules,
+          toolModules: effectiveToolModules(),
           personalization: personalizationRef.current,
           temperature: temperatureRef.current,
         };
@@ -168,6 +167,10 @@ export default function ChatScreen({
       messages: initialMessages,
       transport,
     });
+
+  useEffect(() => () => {
+    void transport.dispose();
+  }, [transport]);
 
   // Auto-scroll the feed to the latest content as it streams.
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -185,6 +188,8 @@ export default function ChatScreen({
   statusRef.current = status;
   const messagesRef = useRef(messages);
   messagesRef.current = messages;
+  const errorRef = useRef(error);
+  errorRef.current = error;
   const newChatRef = useRef(onNewChat);
   newChatRef.current = onNewChat;
   useEffect(() => {
@@ -195,10 +200,18 @@ export default function ChatScreen({
       getStatus: () => statusRef.current,
       getMessages: () => messagesRef.current,
       getModel: () => resolvedRef.current,
+      getDiagnostics: () => ({
+        status: statusRef.current,
+        ...(errorRef.current ? { error: errorRef.current.message } : {}),
+        toolModules: effectiveToolModules(),
+      }),
       setToolModules: (ids) => {
         devToolModulesRef.current = ids;
       },
-      newChat: () => newChatRef.current?.(),
+      newChat: async () => {
+        await transport.dispose();
+        newChatRef.current?.();
+      },
     });
   }, []);
 
@@ -222,17 +235,19 @@ export default function ChatScreen({
     return () => chrome.storage.onChanged.removeListener(handler);
   }, []);
 
-  // Live page title for the context banner.
+  // Keep the context chip aligned with the active tab while the persistent
+  // side panel remains open across tab switches.
   useEffect(() => {
-    try {
+    const refreshPageTitle = () => {
       chrome.tabs?.query({ active: true, lastFocusedWindow: true }, (tabs) => {
         const title = tabs?.[0]?.title;
         if (title) setPageTitle(title);
       });
-    } catch {
-      /* tabs may be unavailable in some contexts */
-    }
-  }, [messages.length]);
+    };
+    refreshPageTitle();
+    chrome.tabs?.onActivated.addListener(refreshPageTitle);
+    return () => chrome.tabs?.onActivated.removeListener(refreshPageTitle);
+  }, []);
 
   // Once the catalog is loaded, make sure the selected (provider, family) is
   // valid; otherwise fall back to the stored default or the first available.
@@ -492,7 +507,11 @@ export default function ChatScreen({
     const modules = new Set(metaRef.current.enabledToolModules);
     if (on) modules.add(BROWSER_CONTROL_MODULE_ID);
     else modules.delete(BROWSER_CONTROL_MODULE_ID);
-    const meta = { ...metaRef.current, enabledToolModules: [...modules] };
+    const meta = {
+      ...metaRef.current,
+      enabledToolModules: [...modules],
+      browserControlConfigured: true,
+    };
     metaRef.current = meta;
     setBrowserControl(on);
     // Persist only once the session is real (has messages); a fresh chat gets

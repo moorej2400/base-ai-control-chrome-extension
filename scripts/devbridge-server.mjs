@@ -52,9 +52,12 @@ const readBody = (req) =>
 
 function deliverNext() {
   while (queue.length && polls.length) {
-    const cmd = queue.shift();
     const res = polls.shift();
-    clearTimeout(res.__holdTimer);
+    res.__cleanup?.();
+    // A panel reload can leave its long poll queued briefly. Never consume a
+    // command with that dead response or the caller waits for the full timeout.
+    if (res.destroyed || res.writableEnded) continue;
+    const cmd = queue.shift();
     json(res, 200, cmd);
   }
 }
@@ -69,12 +72,18 @@ const server = createServer(async (req, res) => {
   if (method === 'GET' && url.pathname === '/next') {
     lastPollAt = Date.now();
     if (queue.length) return json(res, 200, queue.shift());
-    res.__holdTimer = setTimeout(() => {
+    res.__cleanup = () => {
+      clearTimeout(res.__holdTimer);
       const i = polls.indexOf(res);
       if (i >= 0) polls.splice(i, 1);
-      json(res, 204, {});
+    };
+    res.__holdTimer = setTimeout(() => {
+      res.__cleanup();
+      if (!res.destroyed && !res.writableEnded) json(res, 204, {});
     }, POLL_HOLD_MS);
     polls.push(res);
+    req.once('close', res.__cleanup);
+    res.once('close', res.__cleanup);
     return;
   }
 

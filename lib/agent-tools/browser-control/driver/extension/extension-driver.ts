@@ -14,13 +14,29 @@ import type {
 import { accessError, injectedStatusError, restrictedUrlError } from '../errors';
 import { isRestrictedUrl } from './restricted-urls';
 import { snapshotInPage } from './injected/snapshot';
-import { actionInPage, type ActionOp } from './injected/actions';
+import { actionInPage, locateInPage, type ActionOp } from './injected/actions';
 import { waitInPage } from './injected/wait';
 
 const LOAD_TIMEOUT_MS = 15_000;
 const MAX_NODES_INTERACTIVE = 200;
 const MAX_NODES_FULL = 500;
 const EVAL_RESULT_CAP = 5_000;
+
+export interface ExtensionDriverOptions {
+  browserSessionId?: string;
+  getTurnId?: () => string | undefined;
+  cursor?: {
+    publish(tabId: number, move: {
+      type: 'cursor.move';
+      sessionId: string;
+      turnId: string;
+      moveSequence: number;
+      overlayX: number;
+      overlayY: number;
+      pulse: boolean;
+    }): Promise<unknown>;
+  };
+}
 
 /**
  * The chrome.* implementation of BrowserDriver. Holds the only mutable state:
@@ -31,6 +47,9 @@ const EVAL_RESULT_CAP = 5_000;
 class ExtensionDriver implements BrowserDriver {
   private targetTabId: number | null = null;
   private epoch = 0;
+  private cursorSequence = 0;
+
+  constructor(private readonly options: ExtensionDriverOptions = {}) {}
 
   // --- targeting ---
 
@@ -229,12 +248,11 @@ class ExtensionDriver implements BrowserDriver {
       if (!tab.active && tab.id != null) {
         await chrome.tabs.update(tab.id, { active: true });
       }
-      // Quality 85 (not 60): the screenshot fallback exists so the model can
-      // READ what the DOM can't show it — fine text, canvas content — and
-      // low-quality JPEG makes small text unreadable, defeating the purpose.
+      // Keep screenshots readable without replaying a multi-megabyte base64
+      // payload through every subsequent model step.
       const dataUrl = await chrome.tabs.captureVisibleTab(tab.windowId, {
         format: 'jpeg',
-        quality: 85,
+        quality: 60,
       });
       return { ok: true, dataUrl };
     } catch (err) {
@@ -273,6 +291,26 @@ class ExtensionDriver implements BrowserDriver {
       const tab = await this.resolveTab();
       if (isRestrictedUrl(tab.url)) return restrictedUrlError(tab.url ?? '');
       const before = tab.url ?? '';
+      const turnId = this.options.getTurnId?.();
+      if (uid && this.options.cursor && this.options.browserSessionId && turnId) {
+        const [located] = await chrome.scripting.executeScript({
+          target: { tabId: tab.id! },
+          func: locateInPage,
+          args: [uid],
+        });
+        if (located?.result?.ok && located.result.x !== undefined && located.result.y !== undefined) {
+          this.cursorSequence += 1;
+          await this.options.cursor.publish(tab.id!, {
+            type: 'cursor.move',
+            sessionId: this.options.browserSessionId,
+            turnId,
+            moveSequence: this.cursorSequence,
+            overlayX: located.result.x,
+            overlayY: located.result.y,
+            pulse: op === 'click',
+          });
+        }
+      }
       const [res] = await chrome.scripting.executeScript({
         target: { tabId: tab.id! },
         func: actionInPage,
@@ -320,6 +358,11 @@ class ExtensionDriver implements BrowserDriver {
 }
 
 let singleton: ExtensionDriver | null = null;
+
+/** A session-local fallback driver; unlike the legacy singleton, refs cannot leak across clients. */
+export function createExtensionDriver(options: ExtensionDriverOptions = {}): BrowserDriver {
+  return new ExtensionDriver(options);
+}
 
 /** The process-wide driver, so target-tab/epoch state survives between sends. */
 export function getExtensionDriver(): BrowserDriver {

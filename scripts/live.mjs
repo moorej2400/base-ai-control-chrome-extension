@@ -13,6 +13,7 @@
  *   node scripts/live.mjs send "summarize this page"   # drive the agent, print reply
  *   node scripts/live.mjs read                   # transcript (text + tool calls)
  *   node scripts/live.mjs logs                   # recent side-panel console logs
+ *   node scripts/live.mjs external on|off        # enable the dev bridge's MCP route
  *   node scripts/live.mjs stop                   # abort the current stream
  */
 const RELAY = process.env.DEVBRIDGE_URL || 'http://127.0.0.1:9234';
@@ -103,6 +104,14 @@ try {
       console.log(`extra tool modules for next send: ${ids.join(', ') || '(none)'}`);
       break;
     }
+    case 'external': {
+      const enabled = rest[0] !== 'off';
+      console.log(await call('setExternalBrowserControl', { enabled }));
+      break;
+    }
+    case 'browser-status':
+      console.log(JSON.stringify(await call('browserControlStatus'), null, 2));
+      break;
     case 'inspect': {
       // Dev: run a JS expression in the active tab, print the JSON result.
       // e.g. node scripts/live.mjs inspect "document.title"
@@ -112,7 +121,7 @@ try {
       break;
     }
     default:
-      console.log('Commands: health | status | send "<prompt>" | read | logs | stop | reload | tools <id…> | inspect "<js>"');
+      console.log('Commands: health | status | browser-status | send "<prompt>" | read | logs | stop | reload | tools <id…> | external on|off | inspect "<js>"');
   }
 } catch (e) {
   console.error('ERROR:', e.message);

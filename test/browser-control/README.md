@@ -28,7 +28,7 @@ end state reached via a different tool path is still a pass).
 ```
 bench-server.mjs   two-page instrumented test site; logs every DOM change to events.ndjson
 scenarios.mjs      declarative scenarios: prompt + checks
-run.mjs            automated driver: waits for panel, enables the module, runs + scores
+run.mjs            automated driver: waits for panel, verifies defaults, runs + scores
 report.json        last run's full transcripts + per-check results (gitignored)
 report.txt         last run's console log (gitignored)
 events.ndjson      ground-truth event log, rewritten per scenario (gitignored)
@@ -55,10 +55,11 @@ node test/browser-control/run.mjs fill-form    # or one scenario by name
 ```
 
 `run.mjs` reloads the panel (to load the latest build), then for **each
-scenario** starts a fresh chat session (`newChat`) and enables the opt-in
-`browser-control` module **via the dev bridge** (`setToolModules` — no
-persistence, no change to `DEFAULT_TOOL_MODULES`). The per-scenario fresh
-session matters: without it, screenshot-heavy history from earlier scenarios
+scenario** starts a fresh chat session (`newChat`). Browser control is in
+`DEFAULT_TOOL_MODULES`, so the suite deliberately does not inject it through
+the dev bridge; a default-off regression now fails the real flow. The
+per-scenario fresh session matters: without it, screenshot-heavy history
+from earlier scenarios
 pollutes the model's behaviour and it starts screenshotting instead of acting.
 Exit code is `0` when all hard checks pass.
 

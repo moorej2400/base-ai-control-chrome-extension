@@ -12,19 +12,19 @@ export const BROWSER_CONTROL_MODULE_ID = 'browser-control';
 
 /**
  * The browser-control ToolModule: the ONLY thing that leaves this folder. It
- * plugs into `lib/tools/registry.ts` exactly like `page`/`jira`. All actual
- * control goes through a `BrowserDriver` (today: the chrome-extension driver),
- * so the underlying mechanism can be swapped without touching the agent loop.
+ * plugs into `lib/tools/registry.ts` exactly like `page`/`jira`. The side-panel
+ * path receives a coordinator-backed CDP driver; the direct driver fallback is
+ * reserved for isolated tests/non-panel callers.
  *
- * Intentionally NOT in DEFAULT_TOOL_MODULES: acting on a page is a higher trust
- * level than reading it, so it is opt-in per user (a Settings toggle enables the
- * module id for the session).
+ * New embedded-agent sessions enable this module by default. The session-level
+ * control remains available for an explicit user opt-out.
  */
 export const browserControlModule: ToolModule = {
   id: BROWSER_CONTROL_MODULE_ID,
   label: 'Browser control',
-  getTools(): Record<string, Tool> {
-    const driver = getExtensionDriver();
+  getTools(ctx): Record<string, Tool> {
+    // The coordinator client preserves the historical BrowserDriver surface.
+    const driver = ctx.browserControlDriver ?? getExtensionDriver();
     return {
       ...tabsTools(driver),
       ...navigationTools(driver),

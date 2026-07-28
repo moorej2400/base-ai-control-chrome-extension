@@ -1,0 +1,7 @@
+{
+  "documents": [
+    { "frameId": "main", "nodes": { "backendNodeId": [3], "nodeName": [0], "nodeValue": [1], "parentIndex": [-1] } },
+    { "frameId": "child", "nodes": { "backendNodeId": [3], "nodeName": [0], "nodeValue": [2], "parentIndex": [-1] } }
+  ],
+  "strings": ["BUTTON", "Main", "Child"]
+}

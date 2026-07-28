@@ -1,12 +1,14 @@
 import type { LanguageModel } from 'ai';
 import type { SubagentTrace } from '../agents/subagent-trace';
 import type { ToolContext } from './types';
+import type { BrowserDriver } from '../agent-tools/browser-control/driver/types';
 
 export interface ToolContextOptions {
   /** Resolves the language model the parent agent is using (for sub-agents). */
   getModel: () => Promise<LanguageModel>;
   /** Forwards a sub-agent's live trace to the UI stream (optional). */
   emitSubagent?: (toolCallId: string, trace: SubagentTrace) => void;
+  browserControlDriver?: BrowserDriver;
 }
 
 export function createToolContext(opts: ToolContextOptions): ToolContext {
@@ -21,5 +23,6 @@ export function createToolContext(opts: ToolContextOptions): ToolContext {
     },
     getModel: opts.getModel,
     emitSubagent: opts.emitSubagent,
+    browserControlDriver: opts.browserControlDriver,
   };
 }

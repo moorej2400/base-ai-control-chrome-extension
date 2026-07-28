@@ -1,5 +1,6 @@
 import type { LanguageModel, Tool } from 'ai';
 import type { SubagentTrace } from '../agents/subagent-trace';
+import type { BrowserDriver } from '../agent-tools/browser-control/driver/types';
 
 export interface ToolContext {
   getActiveTab(): Promise<chrome.tabs.Tab>;
@@ -14,6 +15,8 @@ export interface ToolContext {
    * outside a UI stream. Keyed by the delegating tool's call id.
    */
   emitSubagent?(toolCallId: string, trace: SubagentTrace): void;
+  /** The extension-coordinator path for browser tools, when this send enables them. */
+  browserControlDriver?: BrowserDriver;
 }
 
 /**

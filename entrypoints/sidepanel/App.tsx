@@ -38,6 +38,7 @@ import StyleEditScreen from './screens/StyleEditScreen';
 import SystemPromptScreen from './screens/SystemPromptScreen';
 import KeyboardShortcutsScreen from './screens/KeyboardShortcutsScreen';
 import DefaultModelScreen from './screens/DefaultModelScreen';
+import BrowserApprovalPrompt from './components/BrowserApprovalPrompt';
 
 export type Route =
   | 'chat'
@@ -184,6 +185,7 @@ function Shell() {
         onNewChat={newChat}
         onSettings={() => setRoute('settings')}
       />
+      <BrowserApprovalPrompt />
 
       {/* Chat stays mounted (hidden) on other routes so an in-flight stream
           isn't aborted by a visit to settings or the session list. */}

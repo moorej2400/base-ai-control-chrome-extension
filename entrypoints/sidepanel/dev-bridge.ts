@@ -1,4 +1,6 @@
 import type { AppUIMessage } from '@/lib/chat/app-message';
+import { setExternalBrowserControlEnabled } from '@/lib/agent-tools/browser-control/settings';
+import { BrowserControlClient } from '@/lib/agent-tools/browser-control/client/runtime-client';
 
 /**
  * Development-only bridge. Exposes chat controls + state on window.__chatDev and
@@ -14,6 +16,11 @@ export interface ChatDevApi {
   getStatus: () => string;
   getMessages: () => AppUIMessage[];
   getModel: () => string;
+  getDiagnostics: () => {
+    status: string;
+    error?: string;
+    toolModules: string[];
+  };
   /**
    * Dev-only: add extra tool modules to the next send (e.g. 'browser-control')
    * without persisting or touching DEFAULT_TOOL_MODULES. Used by the
@@ -25,7 +32,7 @@ export interface ChatDevApi {
    * scenario and avoid cross-run context pollution. Resets dev tool modules, so
    * callers must re-issue setToolModules afterwards.
    */
-  newChat: () => void;
+  newChat: () => void | Promise<void>;
 }
 
 interface FlatPart {
@@ -41,6 +48,7 @@ const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 let relayStarted = false;
 const logBuffer: { level: string; text: string; ts: number }[] = [];
+const statusClient = new BrowserControlClient();
 
 export function installDevBridge(api: ChatDevApi): void {
   const transcript = () =>
@@ -81,6 +89,7 @@ export function installDevBridge(api: ChatDevApi): void {
     transcript,
     raw: () => api.getMessages(),
     logs: () => [...logBuffer],
+    diagnostics: () => api.getDiagnostics(),
     setToolModules: (ids: string[]) => api.setToolModules(ids),
     newChat: () => api.newChat(),
   };
@@ -110,6 +119,55 @@ async function runCommand(method: string, args: Record<string, unknown>) {
         return { ok: true, result: dev.raw() };
       case 'logs':
         return { ok: true, result: dev.logs() };
+      case 'diagnostics':
+        return { ok: true, result: dev.diagnostics() };
+      case 'debuggerTargets':
+        return {
+          ok: true,
+          result: await chrome.debugger.getTargets(),
+        };
+      case 'debuggerDetachDiagnostic':
+        return {
+          ok: true,
+          result: (await chrome.storage.session.get('dev.browserControl.lastDebuggerDetach'))[
+            'dev.browserControl.lastDebuggerDetach'
+          ],
+        };
+      case 'activateTab': {
+        const urlPrefix = String(args.urlPrefix ?? '');
+        const [tabs, focused] = await Promise.all([
+          chrome.tabs.query({}),
+          chrome.tabs.query({ active: true, lastFocusedWindow: true }),
+        ]);
+        const matches = tabs.filter((candidate) => candidate.id && candidate.url?.startsWith(urlPrefix));
+        // Agent-created Chrome-plugin tabs can be finalized asynchronously.
+        // Prefer the current ordinary user tab, then the newest ungrouped match,
+        // so a long e2e run never loses or silently switches its target.
+        const focusedMatch = focused.find((candidate) => candidate.url?.startsWith(urlPrefix));
+        const ungrouped = matches
+          .filter((candidate) => candidate.groupId === -1)
+          .sort((a, b) => (b.lastAccessed ?? 0) - (a.lastAccessed ?? 0));
+        let tab = focusedMatch ?? ungrouped[0] ?? matches[0];
+        if (!tab && typeof args.createUrl === 'string') {
+          tab = await chrome.tabs.create({ url: args.createUrl, active: true });
+        }
+        if (!tab?.id || tab.windowId === undefined) {
+          return { ok: false, error: `No tab matches ${urlPrefix}` };
+        }
+        await chrome.windows.update(tab.windowId, { focused: true });
+        await chrome.tabs.update(tab.id, { active: true });
+        if (args.reload === true) {
+          await chrome.tabs.reload(tab.id);
+          const deadline = Date.now() + 15_000;
+          while ((await chrome.tabs.get(tab.id)).status !== 'complete' && Date.now() < deadline) {
+            await sleep(100);
+          }
+        }
+        return {
+          ok: true,
+          result: { id: tab.id, url: tab.url, title: tab.title, groupId: tab.groupId },
+        };
+      }
       case 'stop':
         dev.stop();
         return { ok: true, result: 'stopped' };
@@ -121,8 +179,21 @@ async function runCommand(method: string, args: Record<string, unknown>) {
       case 'setToolModules':
         dev.setToolModules((args.ids as string[]) ?? []);
         return { ok: true, result: 'set' };
+      case 'setExternalBrowserControl': {
+        const enabled = args.enabled !== false;
+        await setExternalBrowserControlEnabled(enabled);
+        // Mirror the production Settings handler so the background worker
+        // reconnects the native bridge immediately during live tests.
+        await chrome.runtime.sendMessage({
+          type: 'browser-control.external-control.changed',
+          enabled,
+        });
+        return { ok: true, result: { enabled } };
+      }
+      case 'browserControlStatus':
+        return { ok: true, result: await statusClient.request({ type: 'browser.status' }) };
       case 'newChat':
-        dev.newChat();
+        await dev.newChat();
         return { ok: true, result: 'new-chat' };
       case 'send':
         dev.send(String(args.text ?? ''));

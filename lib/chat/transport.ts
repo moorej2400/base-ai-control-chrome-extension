@@ -12,6 +12,8 @@ import { selectEconomicalModelId } from '../providers/model-selection';
 import { createToolContext } from '../tools/context';
 import { resolveTools } from '../tools/registry';
 import { BROWSER_CONTROL_MODULE_ID } from '../agent-tools/browser-control';
+import { ClientDriver } from '../agent-tools/browser-control/client/client-driver';
+import { BrowserControlClient } from '../agent-tools/browser-control/client/runtime-client';
 import { buildContextMessages } from './context-pack';
 import { buildSystemPrompt, type SystemPromptOptions } from './system-prompt';
 import { addSessionUsage } from '../storage/usage-store';
@@ -41,7 +43,13 @@ const unmask = (error: unknown) =>
  * tool chip.
  */
 export class LocalChatTransport implements ChatTransport<AppUIMessage> {
+  private readonly browserControlClient = new BrowserControlClient();
+
   constructor(private getConfig: () => ChatConfig) {}
+
+  async dispose(): Promise<void> {
+    await this.browserControlClient.endSession();
+  }
 
   async sendMessages({
     messages,
@@ -78,10 +86,15 @@ export class LocalChatTransport implements ChatTransport<AppUIMessage> {
     return createUIMessageStream<AppUIMessage>({
       onError: unmask,
       execute: async ({ writer }) => {
+        const browserControlDriver = toolModules.includes(BROWSER_CONTROL_MODULE_ID)
+          ? new ClientDriver(this.browserControlClient)
+          : undefined;
+        if (browserControlDriver) await this.browserControlClient.startTurn();
         const ctx = createToolContext({
           getModel: async () => model,
           emitSubagent: (id, trace) =>
             writer.write({ type: 'data-subagent', id, data: trace }),
+          browserControlDriver,
         });
         const tools = await resolveTools(toolModules, ctx);
         const contextMessages = await buildContextMessages({
@@ -99,6 +112,7 @@ export class LocalChatTransport implements ChatTransport<AppUIMessage> {
           temperature,
           abortSignal,
           onFinish: ({ totalUsage }) => {
+            if (browserControlDriver) void this.browserControlClient.endTurn();
             // Record measured usage so the composer panel shows real tokens/cost.
             void addSessionUsage(sessionId, {
               inTokens: totalUsage.inputTokens ?? 0,

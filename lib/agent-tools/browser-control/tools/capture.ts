@@ -5,13 +5,12 @@ import type { BrowserDriver } from '../driver/types';
 type ShotOutput = { image: string; mediaType: string } | { error: string };
 
 /**
- * Screenshot + script evaluation. Screenshot returns the image to vision-capable
- * models via `toModelOutput` (as base64 file-data); non-vision models / providers
- * that reject image tool results will error — this path MUST be validated against
- * the real Copilot API before being relied on (see BROWSER_CONTROL_PLAN.md).
+ * Screenshot tools plus an opt-in advanced evaluator. Screenshot returns the
+ * image to vision-capable models via `toModelOutput`; provider compatibility
+ * must be validated against the real Copilot API before relying on it.
  */
-export function captureTools(driver: BrowserDriver): Record<string, Tool> {
-  return {
+export function captureTools(driver: BrowserDriver, options: { allowEvaluate?: boolean } = {}): Record<string, Tool> {
+  const tools: Record<string, Tool> = {
     take_screenshot: tool({
       description:
         'Capture a JPEG of the target tab\'s visible viewport (needs a ' +
@@ -47,8 +46,13 @@ export function captureTools(driver: BrowserDriver): Record<string, Tool> {
         };
       },
     }),
-
-    evaluate_script: tool({
+  };
+  // Raw evaluation is deliberately absent from normal browser-control sessions.
+  // The coordinator also rejects it unless both a trusted connection and an
+  // explicit advanced setting enable it, so an accidental UI/tool regression
+  // cannot make it a generic page-script escape hatch.
+  if (options.allowEvaluate) {
+    tools.evaluate_script = tool({
       description:
         'Run a JavaScript expression in the target page (MAIN world) and return ' +
         'its JSON-serialized result (truncated). Use only when snapshot/click/' +
@@ -59,6 +63,7 @@ export function captureTools(driver: BrowserDriver): Record<string, Tool> {
           .describe('A JS expression, e.g. "document.title" or "location.href".'),
       }),
       execute: async ({ expression }) => driver.evaluate(expression),
-    }),
-  };
+    });
+  }
+  return tools;
 }

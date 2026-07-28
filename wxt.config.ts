@@ -1,5 +1,7 @@
 import { defineConfig } from 'wxt';
 
+const devServerPort = Number(process.env.AI_PAGE_CHAT_DEV_PORT ?? 3197);
+
 export default defineConfig({
   modules: ['@wxt-dev/module-react'],
   // Pin the dev server to a dedicated port. WXT otherwise picks the first open
@@ -8,10 +10,12 @@ export default defineConfig({
   // the side panel loads its code from the wrong server and renders blank.
   // 3197 sits outside the 3000–3010 scan range so the two never fight. The
   // hidden login autostart task (scripts/start-dev-server-hidden.vbs) inherits
-  // this.
+  // this. An isolated worktree can set AI_PAGE_CHAT_DEV_PORT to avoid the
+  // user's regular watcher without changing its normal port.
   dev: {
     server: {
-      port: 3197,
+      port: devServerPort,
+      strictPort: true,
     },
   },
   manifest: {
@@ -24,10 +28,20 @@ export default defineConfig({
     key: 'MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAjs4UZC96hHYV41UghwOQYZfBtRvfViTywd8zCf2WUZNjJ2YYEAikKPZQ9wd4nsA6PNp/kWTAVM/cCMfbO/QF78KEuMtxIyxF+ClGnkSnD7bUVnzgOavzirlctGSfwX1+UJuaFL4KQkqLz7gKE39dWfjJUMyv+yJIOAAktBO8yDQjTlvbcBj+YO14tatmWiyM0Oc8RdA5OIpC1qVQkU/6R1z47uetvl+CrmCMyScpJeUKXvqpMFygfJtKNYmT/1ZQqDhk5UsF1dXDMKqCaeQfiFHV6MzEorjUbzWmAH0ceB8/AqXcYGSBI99LGrDxTiGm6Uy5V0loi0gTTFIy5xo3BQIDAQAB',
     // Browser control (lib/agent-tools/browser-control) reuses these: `tabs`
     // (query/update/goBack/goForward), `scripting` (executeScript for snapshot/
-    // actions), `activeTab` + optional `<all_urls>` (host access + captureVisibleTab).
-    // No new required perms for now; a future chrome.debugger driver would add
-    // an optional `debugger` permission.
-    permissions: ['sidePanel', 'storage', 'scripting', 'activeTab', 'tabs'],
+    // actions), and `activeTab` + optional `<all_urls>` access (host access +
+    // captureVisibleTab). The cursor overlay is injected only into controlled
+    // tabs, so it does not silently promote optional access to required.
+    permissions: [
+      'sidePanel',
+      'storage',
+      'scripting',
+      'activeTab',
+      'tabs',
+      // Chrome only grants deterministic CDP access through this permission.
+      'debugger',
+      // The external MCP bridge connects only after the user enables it in Settings.
+      'nativeMessaging',
+    ],
     // Keyboard shortcut to open the panel. Users rebind it at
     // chrome://extensions/shortcuts (Chrome owns that UI); the extension can only
     // suggest a default and read the current binding via chrome.commands.
@@ -42,8 +56,6 @@ export default defineConfig({
       'https://api.github.com/*',
       'https://*.githubcopilot.com/*',
     ],
-    // User-opt-in (Settings) so page tools work on any tab without
-    // requiring an icon click per tab.
     optional_host_permissions: ['<all_urls>'],
     icons: {
       16: 'icon/16.png',
@@ -60,6 +72,7 @@ export default defineConfig({
         48: 'icon/48.png',
       },
     },
-    minimum_chrome_version: '116',
+    // Flattened DebuggerSession routing for OOPIF targets is available in 125+.
+    minimum_chrome_version: '125',
   },
 });

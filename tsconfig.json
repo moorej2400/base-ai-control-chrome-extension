@@ -4,5 +4,6 @@
     "jsx": "react-jsx",
     "strict": true,
     "types": ["chrome"]
-  }
+  },
+  "exclude": ["packages/browser-bridge"]
 }

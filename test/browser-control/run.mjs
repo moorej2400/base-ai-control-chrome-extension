@@ -7,9 +7,9 @@
 //     node test/browser-control/run.mjs            # all scenarios
 //     node test/browser-control/run.mjs fill-form  # one scenario by name
 //
-// It: waits for the panel → reloads it (loads the latest build) → enables the
-// opt-in browser-control module for this run via the dev bridge → runs each
-// scenario → scores real DOM/page-load events → writes report.json + report.txt.
+// It: waits for the panel → reloads it (loads the latest build) → runs each
+// scenario with the product's default tool set → scores real DOM/page-load
+// events → writes report.json + report.txt.
 // The runner does the DETERMINISTIC checks; an AI reviewer then reads the report
 // + transcripts for semantic validation (see README "AI reviewer").
 import { execFileSync } from 'node:child_process';
@@ -22,7 +22,6 @@ const DIR = dirname(fileURLToPath(import.meta.url));
 const RELAY = process.env.DEVBRIDGE_URL || 'http://127.0.0.1:9234';
 const BENCH = process.env.BENCH_URL || 'http://localhost:4599';
 const only = process.argv[2]; // optional scenario name filter
-const BROWSER_CONTROL_ID = 'browser-control'; // matches BROWSER_CONTROL_MODULE_ID
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const log = (s) => console.log(s);
@@ -96,14 +95,28 @@ async function main() {
   let hardPass = 0, hardFail = 0;
   for (const sc of list) {
     say(`\n======== scenario: ${sc.name} ========`);
+    await benchReset();
+    await relay('activateTab', {
+      urlPrefix: `${BENCH}/`,
+      createUrl: `${BENCH}/`,
+      reload: true,
+    });
+    await sleep(300);
     // Fresh session per scenario so screenshot-heavy history from earlier
     // scenarios/runs can't pollute the model's behaviour. newChat resets dev
-    // tool modules, so re-enable browser-control right after.
+    // tool modules. Browser control is part of the product's default set, so
+    // this also catches regressions where a fresh chat incorrectly starts off.
     await relay('newChat');
     await sleep(1200); // let the new ChatScreen mount + reinstall the bridge
-    await relay('setToolModules', { ids: [BROWSER_CONTROL_ID] });
-    await benchReset();
+    const before = await relay('diagnostics');
+    if (!before.toolModules.includes('browser-control')) {
+      throw new Error(`Fresh chat did not enable browser-control: ${JSON.stringify(before)}`);
+    }
     const turns = await relay('sendAndWait', { text: sc.prompt });
+    const after = await relay('diagnostics');
+    if (after.status === 'error') {
+      throw new Error(`Embedded agent failed: ${after.error ?? 'unknown chat error'}`);
+    }
     await sleep(1500); // let trailing beacons land
     const events = await benchEvents();
     const ctx = buildCtx(events, turns, badgeToken);

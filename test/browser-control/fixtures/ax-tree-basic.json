@@ -1,0 +1,6 @@
+{
+  "nodes": [
+    { "backendDOMNodeId": 3, "role": { "value": "button" }, "name": { "value": "Save" }, "properties": [{ "name": "focusable", "value": { "value": true } }] },
+    { "backendDOMNodeId": 4, "role": { "value": "paragraph" }, "name": { "value": "Helpful text" } }
+  ]
+}

@@ -1,0 +1,26 @@
+{
+  "name": "@ai-page-chat/browser-bridge",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "bin": {
+    "ai-page-chat-browser": "./dist/cli.js"
+  },
+  "scripts": {
+    "build": "tsup",
+    "compile": "tsc --noEmit",
+    "test": "pnpm --dir ../.. exec vitest run --config vitest.config.ts packages/browser-bridge/test"
+  },
+  "dependencies": {
+    "@ai-page-chat/browser-control-protocol": "workspace:^",
+    "@modelcontextprotocol/sdk": "^1.25.1",
+    "zod": "^4.4.3"
+  },
+  "devDependencies": {
+    "@types/node": "^25.0.0",
+    "tsup": "^8.5.1",
+    "tsx": "^4.21.0",
+    "typescript": "^6.0.3",
+    "vitest": "^4.1.10"
+  }
+}

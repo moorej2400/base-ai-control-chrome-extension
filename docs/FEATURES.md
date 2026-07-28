@@ -48,14 +48,13 @@ Legend: ✅ real & working · 🟡 partial · ⛔ deferred (see _Deferred_ at th
   on the active tab. (`lib/tools/page-tools.ts`)
 - ✅ **Jira ticket review** — sub-agent delegating tool, gated to Jira issue
   pages. (`lib/tools/jira/`)
-- ✅ **Browser control** — the agent can drive the browser: tabs, navigation,
-  `take_snapshot` (uid-tagged elements), `click`/`fill`/`fill_form`/`hover`/
-  `press_key`/`scroll_to`, `take_screenshot`, `evaluate_script`. Isolated behind
-  a swappable `BrowserDriver` seam (chrome-extension impl today).
-  **Opt-in — not default-enabled** and has **no Settings UI toggle yet** (a
-  future UI workstream; today it's enabled per-run via the dev bridge). Validated
-  live by the e2e suite in `test/browser-control/`.
-  (`lib/agent-tools/browser-control/`)
+- ✅ **Dual-client browser control** — the side-panel agent and local MCP
+  client share session/turn leases, a CDP-first resilient driver, visible
+  cursor, and approval policy. Embedded sessions and the local MCP toggle
+  default on; the companion native host is user-scoped and origin-restricted.
+  The full embedded bench, MCP disconnect cleanup, cursor alignment, and
+  reload/error audit pass live. See
+  [Dual-client browser control](DUAL_CLIENT_BROWSER_CONTROL.md).
 
 ## Settings
 

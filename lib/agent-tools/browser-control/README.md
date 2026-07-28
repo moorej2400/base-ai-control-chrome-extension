@@ -1,12 +1,13 @@
 # browser-control
 
 Tools that let the agent **control the browser** — tabs, navigation, reading
-page structure, clicking, filling, screenshots — implemented purely through
-Chrome extension APIs. Self-contained and isolated: the rest of the extension
-only ever imports from [`index.ts`](index.ts).
+page structure, clicking, filling, screenshots — through the extension's
+session-aware CDP driver. The built-in side-panel loop and optional local MCP
+bridge enter the same coordinator. Self-contained and isolated: the rest of
+the extension only ever imports from [`index.ts`](index.ts).
 
-See [`docs/BROWSER_CONTROL_PLAN.md`](../../../docs/BROWSER_CONTROL_PLAN.md) for
-the full design and rationale, and
+See [`docs/DUAL_CLIENT_BROWSER_CONTROL.md`](../../../docs/DUAL_CLIENT_BROWSER_CONTROL.md)
+for the current dual-client architecture, and
 [`test/browser-control/`](../../../test/browser-control/) for the live e2e suite
 that validates these tools against the real extension.
 
@@ -19,9 +20,8 @@ that validates these tools against the real extension.
    - `lib/chat/system-prompt.ts` has one guidance line.
    - `lib/chat/transport.ts` raises the step budget when the module is enabled.
 2. **Tools never call `chrome.*`.** They call the [`BrowserDriver`](driver/types.ts)
-   interface. The chrome implementation is [`driver/extension/`](driver/extension/).
-   To swap the control mechanism (e.g. `chrome.debugger`/CDP), add a new driver
-   and change `getExtensionDriver()` — no tool changes.
+   interface. The coordinator supplies a per-session CDP view, so the transport
+   can evolve without changing the agent loop.
 3. **Tools never throw.** Every result is structured or `{ error }` with
    recovery guidance, so the agent loop keeps running.
 
@@ -34,28 +34,30 @@ tools/          AI SDK tool definitions (schemas + descriptions), by group
 driver/
   types.ts      BrowserDriver interface + result types  ← the swap seam
   errors.ts     failure → agent-actionable message mapping
-  extension/    the chrome.* implementation
-    extension-driver.ts   BrowserDriver impl; owns target-tab + epoch state
-    restricted-urls.ts    chrome://, Web Store, etc. guard
-    injected/             self-contained fns serialized into pages
-      snapshot.ts   DOM walk → uid-tagged element tree + registry
-      actions.ts    resolve uid → dispatch synthetic click/fill/key
-      wait.ts       poll for text/selector
+  cdp/           production Chrome Debugger Protocol implementation
+    cdp-driver.ts          session-scoped BrowserDriver implementation
+    debugger-transport.ts  narrow chrome.debugger boundary
+    snapshot-*.ts          DOM/AX snapshot → opaque reference tree
+    input.ts               trusted CDP input at cursor-matched coordinates
+  extension/     compatibility fallback for isolated callers/tests
+background/      coordinator, session/turn records, leases, approvals, native port
+client/          side-panel runtime-port client and BrowserDriver adapter
+overlay/         lazily injected cursor animation and arrival acknowledgements
 ```
 
 ## uid lifecycle (how interaction works)
 
-1. `take_snapshot` walks the DOM, tags each interactive element with a `uid`
-   (`e{epoch}_{n}`), and stores a `uid → Element` registry on a world global
-   that persists across `executeScript` calls for the same document.
-2. `click`/`fill`/etc. resolve a uid against that registry.
-3. Each snapshot bumps the **epoch**. A uid from an older epoch (page changed /
-   navigated / re-snapshotted) is rejected as `stale`, forcing a re-snapshot.
+1. `take_snapshot` requests a DOMSnapshot plus accessibility tree through the
+   debugger, then returns opaque references bound to the session, tab, and
+   document revision.
+2. `click`/`fill`/etc. resolve those references only inside that same
+   coordinator-owned session.
+3. Each navigation or later snapshot invalidates older references. A stale or
+   cross-session reference is rejected, forcing a fresh snapshot.
 
-## Known limitation
+## Runtime safety
 
-Synthetic events are `isTrusted: false`. This works on the vast majority of
-sites but is ignored by the few that gate on trusted input (some anti-bot /
-payment flows). The designed fix is a future `chrome.debugger`-backed driver
-implementing the same `BrowserDriver` interface — which is exactly why the seam
-exists.
+References are opaque and bound to one browser session, tab, and document
+revision. CDP input uses the same resolved coordinate as the visible cursor.
+Only the side-panel approval port can authorize high-impact actions; an MCP
+client can request and resume an action but cannot approve it.

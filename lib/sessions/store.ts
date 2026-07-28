@@ -3,6 +3,7 @@ import { storageGet, storageSet } from '../storage/chrome-storage';
 import { deleteContextSummary } from '../storage/context-db';
 import { deleteMessages } from '../storage/message-db';
 import { DEFAULT_TOOL_MODULES } from '../tools/registry';
+import { BROWSER_CONTROL_MODULE_ID } from '../agent-tools/browser-control/module';
 import { NEW_CHAT_TITLE, type SessionMeta } from './types';
 
 const INDEX_KEY = 'sessions.index';
@@ -26,6 +27,7 @@ export function createSession(modelId: string): SessionMeta {
     providerId: DEFAULT_PROVIDER_ID,
     modelId,
     enabledToolModules: [...DEFAULT_TOOL_MODULES],
+    browserControlConfigured: true,
   };
 }
 
@@ -51,7 +53,18 @@ export async function deleteSession(id: string): Promise<void> {
 async function readSessionIndex(): Promise<SessionMeta[]> {
   const index = await storageGet<unknown>(INDEX_KEY);
   if (!Array.isArray(index)) return [];
-  return index.filter(isSessionMeta);
+  return index.filter(isSessionMeta).map(migrateSessionDefaults);
+}
+
+function migrateSessionDefaults(session: SessionMeta): SessionMeta {
+  if (session.browserControlConfigured !== undefined) return session;
+  return {
+    ...session,
+    enabledToolModules: [
+      ...new Set([...session.enabledToolModules, BROWSER_CONTROL_MODULE_ID]),
+    ],
+    browserControlConfigured: true,
+  };
 }
 
 function isSessionMeta(value: unknown): value is SessionMeta {
@@ -64,6 +77,8 @@ function isSessionMeta(value: unknown): value is SessionMeta {
     typeof candidate.updatedAt === 'number' &&
     typeof candidate.providerId === 'string' &&
     typeof candidate.modelId === 'string' &&
-    Array.isArray(candidate.enabledToolModules)
+    Array.isArray(candidate.enabledToolModules) &&
+    (candidate.browserControlConfigured === undefined ||
+      typeof candidate.browserControlConfigured === 'boolean')
   );
 }

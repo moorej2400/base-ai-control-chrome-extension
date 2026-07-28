@@ -20,6 +20,28 @@ export interface ActionPayload {
   title: string;
 }
 
+export interface LocatedElement {
+  ok: boolean;
+  x?: number;
+  y?: number;
+}
+
+/** Resolve a fallback-driver reference before acting so the shared cursor can arrive first. */
+export function locateInPage(uid: string): LocatedElement {
+  const reg = (globalThis as any).__agentBrowserControl__ as
+    | { epoch: number; els: Map<string, Element> }
+    | undefined;
+  if (!reg || !uid || uid.split('_')[0] !== `e${reg.epoch}`) return { ok: false };
+  const el = reg.els.get(uid);
+  if (!el?.isConnected) return { ok: false };
+  const rect = el.getBoundingClientRect();
+  return {
+    ok: true,
+    x: rect.left + rect.width / 2,
+    y: rect.top + rect.height / 2,
+  };
+}
+
 export function actionInPage(
   op: ActionOp,
   uid: string,

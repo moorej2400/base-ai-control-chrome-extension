@@ -1,8 +1,7 @@
 /**
  * The swap seam. Tools NEVER touch `chrome.*` — they call a `BrowserDriver`.
- * Today the only implementation is `ExtensionDriver` (Chrome extension APIs);
- * a future CDP / `chrome.debugger` driver can replace it by implementing this
- * interface, with zero changes to the tool definitions.
+ * The coordinator now supplies a CDP / `chrome.debugger` implementation while
+ * the extension driver remains a direct-call fallback, with zero tool changes.
  *
  * Every method resolves (never rejects) with a structured result. Failure is
  * carried as `{ ok: false, error }` so the agent loop keeps running and the
@@ -98,4 +97,31 @@ export interface BrowserDriver {
   fillForm(fields: Array<{ uid: string; value: string }>): Promise<ActionResult>;
   pressKey(key: string): Promise<ActionResult>;
   scrollTo(uid: string): Promise<ActionResult>;
+}
+
+/**
+ * Gives the coordinator a driver view bound to one browser-control session and
+ * turn. CDP references and cursor moves are therefore never shared between
+ * the embedded agent and an external MCP client, even though they use the
+ * same underlying Chrome debugger attachments.
+ */
+export interface SessionDriverFactory {
+  forSession(browserSessionId: string, turnId?: string): BrowserDriver;
+  claimTab?(browserSessionId: string, tabId: number): Promise<void>;
+  releaseTab?(browserSessionId: string, tabId: number): Promise<void>;
+  releaseSession?(browserSessionId: string): Promise<void>;
+}
+
+export interface ApprovalTargetContext {
+  documentRevision: string;
+  target?: { role?: string; name?: string; destination?: string };
+}
+
+/** Optional capability used only to bind high-impact confirmations to a ref. */
+export interface ApprovalAwareBrowserDriver extends BrowserDriver {
+  approvalContext(ref?: string): Promise<ApprovalTargetContext>;
+}
+
+export function singleDriverFactory(driver: BrowserDriver): SessionDriverFactory {
+  return { forSession: () => driver };
 }

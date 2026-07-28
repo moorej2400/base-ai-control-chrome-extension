@@ -1,0 +1,15 @@
+{
+  "documents": [
+    {
+      "nodes": {
+        "backendNodeId": [1, 2, 3, 4],
+        "nodeName": [0, 1, 2, 3],
+        "nodeValue": [-1, -1, 4, 5],
+        "parentIndex": [-1, 0, 1, 1],
+        "isClickable": { "index": [2], "value": [true] }
+      },
+      "layout": { "nodeIndex": [2, 3], "bounds": [[10, 20, 80, 24], [10, 70, 200, 20]] }
+    }
+  ],
+  "strings": ["HTML", "BODY", "BUTTON", "P", "Save", "Helpful text"]
+}

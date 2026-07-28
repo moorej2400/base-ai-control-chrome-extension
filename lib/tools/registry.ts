@@ -38,13 +38,12 @@ export async function resolveTools(
 
 registerToolModule(pageToolModule);
 registerToolModule(jiraTicketReviewModule);
-// Browser control is registered but intentionally NOT default-enabled: acting
-// on a page is a higher trust level than reading it, so the user opts in.
 registerToolModule(browserControlModule);
 
-// Jira module is enabled by default but gated by isAvailable, so it only
-// surfaces tools when the active tab is a Jira page.
+// Browser control defaults on for the embedded agent; users can still disable
+// it per session. Jira remains gated by its own isAvailable check.
 export const DEFAULT_TOOL_MODULES = [
   pageToolModule.id,
   jiraTicketReviewModule.id,
+  browserControlModule.id,
 ];

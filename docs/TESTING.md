@@ -179,12 +179,24 @@ node test/browser-control/bench-server.mjs     # instrumented test site (leave r
 node test/browser-control/run.mjs              # all scenarios; writes report.json
 ```
 
-`run.mjs` reloads the panel, enables the opt-in `browser-control` module for the
-run via the dev bridge (`live.mjs tools browser-control`, i.e. the `setToolModules`
-command — no persistence), and asserts real DOM/page-load events. It covers
+`run.mjs` reloads the panel, starts a fresh chat with the product's default
+browser-control tool set, and asserts real DOM/page-load events. It covers
 form-fill, navigation + history, multi-tab, and dynamic wait-for. After a run,
 an AI reviewer reads `report.json` for semantic validation (tool choice,
 screenshot path, edge cases). See `test/browser-control/README.md`.
+
+For the native/MCP route, the live bridge exposes:
+
+```sh
+node scripts/live.mjs external on
+node scripts/live.mjs browser-status
+```
+
+The second command must report `enabled: true` and `state: connected`; connected
+is emitted only after the native host has bound its private socket, registered
+the instance, and returned the versioned ready acknowledgement. Then use the
+installed MCP launcher to list tools, claim the bench tab, snapshot, click, and
+end the session. Chrome's extension error page must remain empty after reload.
 
 ## Validation checklist by change type
 
