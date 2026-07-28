@@ -1,5 +1,7 @@
 import type {
   ActionResult,
+  ApprovalTargetContext,
+  ApprovalAwareBrowserDriver,
   BrowserDriver,
   DriverError,
   EvaluateResult,
@@ -14,7 +16,12 @@ import type {
 import { accessError, injectedStatusError, restrictedUrlError } from '../errors';
 import { isRestrictedUrl } from './restricted-urls';
 import { snapshotInPage } from './injected/snapshot';
-import { actionInPage, locateInPage, type ActionOp } from './injected/actions';
+import {
+  actionInPage,
+  approvalContextInPage,
+  locateInPage,
+  type ActionOp,
+} from './injected/actions';
 import { waitInPage } from './injected/wait';
 
 const LOAD_TIMEOUT_MS = 15_000;
@@ -44,7 +51,7 @@ export interface ExtensionDriverOptions {
  * A module-level singleton so the target tab persists across agent steps and
  * across chat messages within the session.
  */
-class ExtensionDriver implements BrowserDriver {
+class ExtensionDriver implements ApprovalAwareBrowserDriver {
   private targetTabId: number | null = null;
   private epoch = 0;
   private cursorSequence = 0;
@@ -277,6 +284,19 @@ class ExtensionDriver implements BrowserDriver {
     } catch (err) {
       return accessError(err);
     }
+  }
+
+  async approvalContext(ref?: string): Promise<ApprovalTargetContext> {
+    const tab = await this.resolveTab();
+    if (isRestrictedUrl(tab.url)) {
+      return { documentRevision: `tab:${tab.id ?? -1}` };
+    }
+    const [result] = await chrome.scripting.executeScript({
+      target: { tabId: tab.id! },
+      func: approvalContextInPage,
+      args: [ref ?? null, tab.url ?? ''],
+    });
+    return result?.result ?? { documentRevision: `tab:${tab.id ?? -1}` };
   }
 
   // --- acting ---

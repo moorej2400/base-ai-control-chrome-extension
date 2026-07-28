@@ -26,6 +26,54 @@ export interface LocatedElement {
   y?: number;
 }
 
+export interface InjectedApprovalContext {
+  documentRevision: string;
+  target?: { role?: string; name?: string; destination?: string };
+}
+
+/** Read the same snapshot-bound target metadata used by approval classification. */
+export function approvalContextInPage(
+  uid: string | null | undefined,
+  pageUrl: string,
+): InjectedApprovalContext {
+  const reg = (globalThis as any).__agentBrowserControl__ as
+    | { epoch: number; els: Map<string, Element> }
+    | undefined;
+  const documentRevision = `${pageUrl}#${reg?.epoch ?? 0}`;
+  if (!reg || !uid || uid.split('_')[0] !== `e${reg.epoch}`) {
+    return { documentRevision };
+  }
+  const el = reg.els.get(uid);
+  if (!el?.isConnected) return { documentRevision };
+  const clean = (value: string | null | undefined) =>
+    String(value ?? '').replace(/\s+/g, ' ').trim().slice(0, 120);
+  const labelledBy = el.getAttribute('aria-labelledby');
+  const labelledText = labelledBy
+    ? document.getElementById(labelledBy)?.textContent
+    : undefined;
+  const labels = (el as HTMLInputElement).labels;
+  const name = clean(
+    el.getAttribute('aria-label')
+      || labelledText
+      || el.getAttribute('title')
+      || labels?.[0]?.textContent
+      || el.textContent,
+  );
+  const explicitRole = el.getAttribute('role');
+  const role = explicitRole || el.tagName.toLowerCase();
+  const destination = el.tagName.toLowerCase() === 'a'
+    ? (el as HTMLAnchorElement).href
+    : undefined;
+  return {
+    documentRevision,
+    target: {
+      role,
+      ...(name ? { name } : {}),
+      ...(destination ? { destination } : {}),
+    },
+  };
+}
+
 /** Resolve a fallback-driver reference before acting so the shared cursor can arrive first. */
 export function locateInPage(uid: string): LocatedElement {
   const reg = (globalThis as any).__agentBrowserControl__ as

@@ -51,19 +51,19 @@ describe('MCP browser session lifecycle', () => {
       ok: true,
       result: results.shift(),
     }));
-    const server = createBrowserMcpServer({ request });
-    const registered = server as unknown as {
+    const runtime = createBrowserMcpServer({ request });
+    const registered = runtime.server as unknown as {
       _registeredTools: Record<string, { handler(args: Record<string, unknown>): Promise<unknown> }>;
     };
     const tool = registered._registeredTools.browser_list_tabs;
 
     await tool.handler({});
-    server.server.onclose?.();
+    await runtime.close();
+    await runtime.close();
+    await runtime.closed;
 
-    await vi.waitFor(() => {
-      expect(request.mock.calls.map(([envelope]) => (
-        envelope.command as { type: string }
-      ).type)).toEqual(['session.start', 'turn.start', 'tabs.list', 'turn.end', 'session.end']);
-    });
+    expect(request.mock.calls.map(([envelope]) => (
+      envelope.command as { type: string }
+    ).type)).toEqual(['session.start', 'turn.start', 'tabs.list', 'turn.end', 'session.end']);
   });
 });

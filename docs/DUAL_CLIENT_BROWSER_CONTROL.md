@@ -1,5 +1,10 @@
 # Dual-client browser control
 
+This is the operator and completion guide. The canonical component design,
+protocol, lifecycle, security model, driver internals, cursor contract, and
+extension points are documented in
+[Browser-control architecture](BROWSER_CONTROL_ARCHITECTURE.md).
+
 The extension has one browser-control authority with two clients:
 
 ```mermaid
@@ -37,15 +42,18 @@ shortcut around the coordinator.
   a session-local isolated-world driver, requires a fresh snapshot/reference
   epoch, and continues. A later client starts with CDP again.
 - The cursor overlay is injected lazily into only the controlled tab and
-  receives the same resolved top-level coordinate as either CDP input or the
-  isolated-world fallback action. The action waits briefly for visual arrival,
-  but never blocks forever on a hidden tab.
+  receives the resolved CDP input coordinate or the fallback driver's
+  preliminary element center. The action waits briefly for visual arrival but
+  never blocks forever on a hidden tab. Fallback alignment is best-effort when
+  its later action injection scrolls or moves the element.
 - CDP attachment explicitly restores Input-domain delivery and target focus.
   This keeps trusted pointer/key events reliable even when another Chrome
   window was previously frontmost.
-- High-impact labels and every close-tab request create an approval challenge.
-  Only the side-panel approval port can approve or reject it; the originating
-  client resumes the exact bound action afterwards.
+- Every close-tab request creates an approval challenge. Only the side-panel
+  approval port can approve or reject it; the originating client resumes the
+  exact bound action afterwards. Target-label classification exists, but the
+  current resilient driver wrapper does not forward its metadata, so those
+  high-impact label challenges are not yet reliable.
 
 ## External MCP bridge
 
@@ -117,6 +125,10 @@ against the real unpacked extension:
   the final implementation audit all pass.
 
 The live completion run passed all five embedded scenarios (15 hard checks),
-the installed MCP smoke flow including disconnect cleanup, exact cursor-to-target
-coordinate comparison on both CDP and fallback paths, and a clean
-`chrome://extensions` error page after reload and exercised control.
+the installed MCP smoke flow including normal transport-close cleanup,
+two-position cursor validation for both embedded and MCP clients, repeated MCP
+fill replacement, fallback activation, and a clean `chrome://extensions` error
+page after reload and exercised control. The run also verified that an MCP
+client closed without `browser_end_session` releases its lease before embedded
+control starts. The architecture guide records the stricter remaining limit for
+uncatchable MCP termination and shared-native-connection loss.

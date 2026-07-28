@@ -113,6 +113,10 @@ Both rely on a `window.__chatDev` bridge that is **only present in dev builds**
 
 For the parent agent, tool modules, sub-agents, and context compaction flow, see
 [docs/AGENT_ARCHITECTURE.md](docs/AGENT_ARCHITECTURE.md).
+For the implemented embedded-agent and external-MCP browser-control system,
+including sessions, leases, CDP fallback, security, native IPC, and the visible
+cursor, see
+[docs/BROWSER_CONTROL_ARCHITECTURE.md](docs/BROWSER_CONTROL_ARCHITECTURE.md).
 For the planned context, retrieval, memory, and ownership roadmap, see
 [docs/CONTEXT_AND_MEMORY_PLAN.md](docs/CONTEXT_AND_MEMORY_PLAN.md).
 

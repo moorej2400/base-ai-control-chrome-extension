@@ -1,5 +1,10 @@
 # Parent/Sub-Agent Architecture
 
+This document covers the AI agent hierarchy and context flow. Browser execution
+is a separate shared subsystem used by the embedded agent and external MCP
+clients; its canonical design is
+[Browser-control architecture](BROWSER_CONTROL_ARCHITECTURE.md).
+
 This extension runs its AI agent loop entirely inside the Chrome side panel.
 The MV3 background worker opens the panel; it does not broker chat requests.
 

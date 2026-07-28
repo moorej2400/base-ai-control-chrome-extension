@@ -301,12 +301,16 @@ switch (mode) {
       import("./registry-ARDH6KPO.js"),
       import("./paths-YZRQ47EM.js"),
       import("./client-AKY3LSGH.js"),
-      import("./server-IWHXR32F.js")
+      import("./server-WAVGQUNF.js")
     ]);
     try {
       const instance = await new BridgeRegistry2(bridgePaths2()).select(option("--instance") ?? process.env.AI_PAGE_CHAT_INSTANCE);
       const client = new IpcClient({ socketPath: instance.socketPath, token: instance.token, protocolVersion: 1 });
-      await runBrowserMcp({ request: (envelope) => client.request(envelope) });
+      try {
+        await runBrowserMcp({ request: (envelope) => client.request(envelope) });
+      } finally {
+        await client.close();
+      }
     } catch (error) {
       logBridge(error instanceof Error ? error.message : String(error));
       process.exitCode = 1;

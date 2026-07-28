@@ -33,7 +33,8 @@ try {
   const tools = await client.listTools();
   const status = await call('browser_status');
   const listed = await call('browser_list_tabs');
-  const tab = listed.tabs.find((candidate) => candidate.url?.startsWith(targetPrefix));
+  const matchingTabs = listed.tabs.filter((candidate) => candidate.url?.startsWith(targetPrefix));
+  const tab = matchingTabs.find((candidate) => candidate.active) ?? matchingTabs[0];
   if (!tab) throw new Error(`No browser tab matches ${targetPrefix}`);
   await call('browser_claim_tab', { tabId: tab.id });
   const snapshot = await call('browser_snapshot');

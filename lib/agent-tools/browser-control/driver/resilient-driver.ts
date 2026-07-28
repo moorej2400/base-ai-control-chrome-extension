@@ -1,5 +1,7 @@
 import type {
   ActionResult,
+  ApprovalAwareBrowserDriver,
+  ApprovalTargetContext,
   BrowserDriver,
   DriverError,
   EvaluateResult,
@@ -93,7 +95,7 @@ export class ResilientDriverFactory implements SessionDriverFactory {
   }
 }
 
-class ResilientSessionDriver implements BrowserDriver {
+class ResilientSessionDriver implements ApprovalAwareBrowserDriver {
   constructor(
     private readonly primary: BrowserDriver,
     private readonly fallback: SessionFallback,
@@ -154,6 +156,14 @@ class ResilientSessionDriver implements BrowserDriver {
 
   evaluate(expression: string): Promise<EvaluateResult> {
     return this.retrySafe('evaluate', [expression]);
+  }
+
+  async approvalContext(ref?: string): Promise<ApprovalTargetContext> {
+    const driver = this.fallback.active ? this.fallback.driver : this.primary;
+    if (isApprovalAware(driver)) return driver.approvalContext(ref);
+    return {
+      documentRevision: `tab:${(await driver.getTargetTab()).id}`,
+    };
   }
 
   click(uid: string, opts?: { dblClick?: boolean }): Promise<ActionResult> {
@@ -230,6 +240,13 @@ async function invoke<K extends keyof BrowserDriver>(
 function isUnavailableResult(result: unknown): boolean {
   const candidate = result as ResultWithError | undefined;
   return candidate?.ok === false && isDebuggerUnavailable(candidate.error ?? '');
+}
+
+function isApprovalAware(driver: BrowserDriver): driver is ApprovalAwareBrowserDriver {
+  return (
+    'approvalContext' in driver
+    && typeof (driver as Partial<ApprovalAwareBrowserDriver>).approvalContext === 'function'
+  );
 }
 
 function isDebuggerUnavailable(message: string): boolean {

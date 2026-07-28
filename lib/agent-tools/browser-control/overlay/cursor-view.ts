@@ -5,6 +5,9 @@ export class CursorView {
   private readonly cursor: HTMLElement;
 
   constructor(private readonly doc: Document) {
+    for (const stale of doc.querySelectorAll('[data-ai-page-chat-cursor]')) {
+      stale.remove();
+    }
     this.host = doc.createElement('div');
     this.host.dataset.aiPageChatCursor = '';
     this.host.setAttribute('aria-hidden', 'true');

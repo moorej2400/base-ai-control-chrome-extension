@@ -17,6 +17,9 @@ export class CursorController {
 
   ensure(): void {
     if (this.view?.host.isConnected) return;
+    // A newer isolated extension context owns the replacement host. The old
+    // mutation observer must not recreate its stale cursor after a reload.
+    if (this.view && this.options.document.querySelector('[data-ai-page-chat-cursor]')) return;
     this.view?.dispose();
     this.view = new CursorView(this.options.document);
     this.observer ??= new MutationObserver(() => {

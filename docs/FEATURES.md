@@ -52,8 +52,9 @@ Legend: ✅ real & working · 🟡 partial · ⛔ deferred (see _Deferred_ at th
   client share session/turn leases, a CDP-first resilient driver, visible
   cursor, and approval policy. Embedded sessions and the local MCP toggle
   default on; the companion native host is user-scoped and origin-restricted.
-  The full embedded bench, MCP disconnect cleanup, cursor alignment, and
-  reload/error audit pass live. See
+  The full embedded bench, normal MCP transport-close cleanup, exercised cursor
+  alignment, and reload/error audit pass live. See
+  [Browser-control architecture](BROWSER_CONTROL_ARCHITECTURE.md) and
   [Dual-client browser control](DUAL_CLIENT_BROWSER_CONTROL.md).
 
 ## Settings

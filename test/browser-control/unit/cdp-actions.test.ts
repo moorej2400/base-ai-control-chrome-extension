@@ -1,5 +1,7 @@
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { CdpInput } from '@/lib/agent-tools/browser-control/driver/cdp/input';
+
+afterEach(() => vi.unstubAllGlobals());
 
 describe('CDP trusted input', () => {
   it('uses the resolved ActionPoint for trusted click input', async () => {
@@ -21,5 +23,18 @@ describe('CDP trusted input', () => {
       'Input.dispatchKeyEvent', 'Input.dispatchKeyEvent', 'Input.dispatchKeyEvent', 'Input.insertText',
     ]);
     expect(send).toHaveBeenLastCalledWith('Input.insertText', { text: 'new value' });
+  });
+
+  it('uses the macOS Command modifier when replacing existing text', async () => {
+    vi.stubGlobal('navigator', { platform: 'MacIntel', userAgent: 'Macintosh' });
+    const send = vi.fn<(method: string, params?: object) => Promise<unknown>>(async () => ({}));
+
+    await new CdpInput({ send }).replaceText('replacement');
+
+    expect(send).toHaveBeenNthCalledWith(1, 'Input.dispatchKeyEvent', expect.objectContaining({
+      key: 'a',
+      modifiers: 4,
+      commands: ['selectAll'],
+    }));
   });
 });

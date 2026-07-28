@@ -1,12 +1,13 @@
 # Browser Control Plan
 
-> **Implementation update (2026-07-27):** this historical Phase-1 plan is
-> superseded for runtime architecture by
-> [Dual-client browser control](DUAL_CLIENT_BROWSER_CONTROL.md). Browser control
-> now uses a session-aware CDP driver with a local MCP bridge (enabled by
-> default and locally disableable), visible
-> cursor, leases, and approval challenges; the older extension-driver path is
-> retained only as a compatibility seam.
+> **Historical design:** this is the original extension-driver plan. The
+> implemented system now uses a shared dual-client coordinator, CDP-first
+> execution, session-scoped fallback, a native MCP bridge, leases, approvals,
+> and a visible cursor. Use
+> [Browser-control architecture](BROWSER_CONTROL_ARCHITECTURE.md) as the
+> canonical current design and
+> [Dual-client browser control](DUAL_CLIENT_BROWSER_CONTROL.md) for setup and
+> operational validation.
 
 Give the in-panel agent tools to **control the browser** — navigate, click,
 fill forms, read state, manage tabs — implemented purely through Chrome

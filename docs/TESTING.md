@@ -1,5 +1,10 @@
 # Testing & validating the real flow
 
+Browser-control tests enforce the design contract in
+[Browser-control architecture](BROWSER_CONTROL_ARCHITECTURE.md). Use
+[Dual-client browser control](DUAL_CLIENT_BROWSER_CONTROL.md) for companion
+installation and the final dual-client completion gates.
+
 **Core rule: don't work in the dark.** When you change anything that touches the
 Copilot API, models, the agent/tool loop, or chat behavior, validate it against
 the **real** Copilot API and the **real** running extension before claiming it
@@ -195,8 +200,18 @@ node scripts/live.mjs browser-status
 The second command must report `enabled: true` and `state: connected`; connected
 is emitted only after the native host has bound its private socket, registered
 the instance, and returned the versioned ready acknowledgement. Then use the
-installed MCP launcher to list tools, claim the bench tab, snapshot, click, and
-end the session. Chrome's extension error page must remain empty after reload.
+installed MCP launcher to list tools, claim the active matching bench tab,
+snapshot, click, fill, and end the session:
+
+```sh
+node scripts/mcp-smoke.mjs --end
+```
+
+Also run it once without `--end`, then immediately run an embedded scenario.
+The MCP process must finish its signal/transport cleanup and the embedded agent
+must claim the same tab without `TAB_LEASED`. Repeat a fill against an existing
+value to confirm replacement rather than append behavior. Chrome's extension
+error page must remain empty after reload.
 
 ## Validation checklist by change type
 

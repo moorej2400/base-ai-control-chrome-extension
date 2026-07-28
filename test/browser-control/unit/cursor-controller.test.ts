@@ -28,6 +28,16 @@ describe('CursorController', () => {
     cursor.dispose();
   });
 
+  it('replaces a stale overlay left by a reloaded extension context', () => {
+    const stale = new CursorController({ document, reducedMotion: () => true, onArrived: () => {} });
+    const current = new CursorController({ document, reducedMotion: () => true, onArrived: () => {} });
+
+    expect(document.querySelectorAll('[data-ai-page-chat-cursor]')).toHaveLength(1);
+
+    stale.dispose();
+    current.dispose();
+  });
+
   it('cleans up its DOM and observers', () => {
     const cursor = new CursorController({ document, reducedMotion: () => true, onArrived: () => {} });
     cursor.dispose();

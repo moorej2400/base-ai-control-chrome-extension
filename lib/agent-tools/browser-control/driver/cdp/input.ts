@@ -31,8 +31,16 @@ export class CdpInput {
   }
 
   async replaceText(text: string): Promise<void> {
-    await this.transport.send('Input.dispatchKeyEvent', { type: 'keyDown', key: 'a', code: 'KeyA', modifiers: 2 });
-    await this.transport.send('Input.dispatchKeyEvent', { type: 'keyUp', key: 'a', code: 'KeyA', modifiers: 2 });
+    const platform = `${globalThis.navigator?.platform ?? ''} ${globalThis.navigator?.userAgent ?? ''}`;
+    const selectAllModifier = /mac/i.test(platform) ? 4 : 2;
+    await this.transport.send('Input.dispatchKeyEvent', {
+      type: 'keyDown',
+      key: 'a',
+      code: 'KeyA',
+      modifiers: selectAllModifier,
+      commands: ['selectAll'],
+    });
+    await this.transport.send('Input.dispatchKeyEvent', { type: 'keyUp', key: 'a', code: 'KeyA', modifiers: selectAllModifier });
     await this.transport.send('Input.dispatchKeyEvent', { type: 'keyDown', key: 'Backspace', code: 'Backspace' });
     await this.transport.send('Input.insertText', { text });
   }
