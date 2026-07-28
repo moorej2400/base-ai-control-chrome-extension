@@ -29,6 +29,35 @@ giving an apex half-angle of approximately `atan(16.5 / 41) = 21.9°`. The full
 tip angle is therefore approximately 43.8°. The notch is also centered and
 symmetric.
 
+### Future base-width adjustment
+
+`CURSOR_BASE_WIDTH = 33` is the parameter to change when making the cursor
+narrower or wider. Keep the centerline fixed at `CURSOR_CENTER_X = 20.5` and
+derive the two base corners rather than moving them independently:
+
+```text
+leftBaseX  = CURSOR_CENTER_X - CURSOR_BASE_WIDTH / 2
+rightBaseX = CURSOR_CENTER_X + CURSOR_BASE_WIDTH / 2
+```
+
+For the current width:
+
+```text
+leftBaseX  = 20.5 - 33 / 2 = 4
+rightBaseX = 20.5 + 33 / 2 = 37
+```
+
+Changing the width must update:
+
+1. the exported geometry constant used by the overlay;
+2. the derived left and right base coordinates in the overlay path;
+3. the matching path in `public/browser-cursor.svg`;
+4. geometry-test expectations and the documented tip-angle calculation.
+
+Do not change the centerline, tip coordinate, base Y coordinate, or display
+rotation merely to tune width. Review the notch depth separately; it is
+currently `CURSOR_NOTCH_DEPTH = 9`.
+
 ## Appearance
 
 - Fill: existing browser-control blue, `#2f7cf6`.
