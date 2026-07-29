@@ -42,7 +42,8 @@ describe('cursor appearance', () => {
     expect(CURSOR_HEIGHT).toBe(41);
     expect(CURSOR_NOTCH_DEPTH).toBe(9);
     expect(CURSOR_TIP).toEqual({ x: CURSOR_CENTER_X, y: 1.5 });
-    expect(CURSOR_PATH_D).toBe('M20.5 1.5 L37 42.5 L20.5 33.5 L4 42.5 Z');
+    expect(CURSOR_PATH_D.match(/\bQ/g)).toHaveLength(4);
+    expect(CURSOR_PATH_D).toContain('L20.5 33.5');
   });
 
   it('keeps the public SVG upright and synchronized', () => {
@@ -91,17 +92,18 @@ export const CURSOR_BASE_WIDTH = 33;
 export const CURSOR_HEIGHT = 41;
 export const CURSOR_NOTCH_DEPTH = 9;
 export const CURSOR_TIP = { x: CURSOR_CENTER_X, y: 1.5 } as const;
-export const CURSOR_PATH_D = 'M20.5 1.5 L37 42.5 L20.5 33.5 L4 42.5 Z';
+export const CURSOR_PATH_D =
+  'M20.5 1.5 Q20.780006 1.5 21.060011 2.891542 L36.439989 41.108458 Q37 42.5 35.683157 41.781722 L20.5 33.5 L5.316843 41.781722 Q4 42.5 4.560011 41.108458 L19.939989 2.891542 Q20.219994 1.5 20.5 1.5 Z';
 ```
 
 - [ ] **Step 4: Replace the public SVG**
 
-Use the upright `0 0 41 45` view box, `CURSOR_PATH_D`, blue fill, white
+Use the upright `0 0 41 45` view box, `CURSOR_PATH_D`, blue fill, black
 `1.75` outline, and no transform:
 
 ```svg
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 41 45" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Browser control cursor">
-  <path d="M20.5 1.5 L37 42.5 L20.5 33.5 L4 42.5 Z" fill="#2f7cf6" stroke="#fff" stroke-width="1.75" stroke-linejoin="round"/>
+  <path d="M20.5 1.5 Q20.780006 1.5 21.060011 2.891542 L36.439989 41.108458 Q37 42.5 35.683157 41.781722 L20.5 33.5 L5.316843 41.781722 Q4 42.5 4.560011 41.108458 L19.939989 2.891542 Q20.219994 1.5 20.5 1.5 Z" fill="#2f7cf6" stroke="#000" stroke-width="1.75" stroke-linejoin="miter"/>
 </svg>
 ```
 

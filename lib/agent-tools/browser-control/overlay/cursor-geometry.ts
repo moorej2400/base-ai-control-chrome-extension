@@ -11,6 +11,9 @@ export const CURSOR_RENDERED_HEIGHT = 30;
 // Keep the CSS hotspot values stable at the precision used by the SVG overlay.
 const roundCursorGeometry = (value: number) => Number(value.toFixed(6));
 const cursorRenderScale = CURSOR_RENDERED_HEIGHT / CURSOR_VIEWBOX_HEIGHT;
+export const CURSOR_CORNER_TRIM_PX = 1;
+// One rendered CSS pixel maps to 1.5 SVG units at the default 30px cursor height.
+const cursorCornerTrim = CURSOR_CORNER_TRIM_PX / cursorRenderScale;
 
 export const CURSOR_RENDERED_WIDTH = roundCursorGeometry(CURSOR_VIEWBOX_WIDTH * cursorRenderScale);
 export const CURSOR_GLYPH_LEFT = roundCursorGeometry(-CURSOR_TIP.x * cursorRenderScale);
@@ -30,11 +33,50 @@ export const CURSOR_TRANSFORM_ORIGIN_Y = roundCursorGeometry(
 const cursorBaseHalfWidth = CURSOR_BASE_WIDTH / 2;
 const cursorBaseY = CURSOR_TIP.y + CURSOR_HEIGHT;
 const cursorNotchY = cursorBaseY - CURSOR_NOTCH_DEPTH;
+const cursorRightBase = { x: CURSOR_CENTER_X + cursorBaseHalfWidth, y: cursorBaseY };
+const cursorNotch = { x: CURSOR_CENTER_X, y: cursorNotchY };
+const cursorLeftBase = { x: CURSOR_CENTER_X - cursorBaseHalfWidth, y: cursorBaseY };
+
+const pointToward = (
+  from: Readonly<{ x: number; y: number }>,
+  toward: Readonly<{ x: number; y: number }>,
+) => {
+  const deltaX = toward.x - from.x;
+  const deltaY = toward.y - from.y;
+  const distance = Math.hypot(deltaX, deltaY);
+
+  return {
+    x: roundCursorGeometry(from.x + (deltaX / distance) * cursorCornerTrim),
+    y: roundCursorGeometry(from.y + (deltaY / distance) * cursorCornerTrim),
+  };
+};
+
+const formatPoint = (point: Readonly<{ x: number; y: number }>) => `${point.x} ${point.y}`;
+
+const tipTowardRight = pointToward(CURSOR_TIP, cursorRightBase);
+const rightTowardTip = pointToward(cursorRightBase, CURSOR_TIP);
+const rightTowardNotch = pointToward(cursorRightBase, cursorNotch);
+const leftTowardNotch = pointToward(cursorLeftBase, cursorNotch);
+const leftTowardTip = pointToward(cursorLeftBase, CURSOR_TIP);
+const tipTowardLeft = pointToward(CURSOR_TIP, cursorLeftBase);
+const tipRightControl = {
+  x: roundCursorGeometry((CURSOR_TIP.x + tipTowardRight.x) / 2),
+  y: CURSOR_TIP.y,
+};
+const tipLeftControl = {
+  x: roundCursorGeometry((CURSOR_TIP.x + tipTowardLeft.x) / 2),
+  y: CURSOR_TIP.y,
+};
 
 export const CURSOR_PATH_D = [
-  `M${CURSOR_TIP.x} ${CURSOR_TIP.y}`,
-  `L${CURSOR_CENTER_X + cursorBaseHalfWidth} ${cursorBaseY}`,
-  `L${CURSOR_CENTER_X} ${cursorNotchY}`,
-  `L${CURSOR_CENTER_X - cursorBaseHalfWidth} ${cursorBaseY}`,
+  `M${formatPoint(CURSOR_TIP)}`,
+  `Q${formatPoint(tipRightControl)} ${formatPoint(tipTowardRight)}`,
+  `L${formatPoint(rightTowardTip)}`,
+  `Q${formatPoint(cursorRightBase)} ${formatPoint(rightTowardNotch)}`,
+  `L${formatPoint(cursorNotch)}`,
+  `L${formatPoint(leftTowardNotch)}`,
+  `Q${formatPoint(cursorLeftBase)} ${formatPoint(leftTowardTip)}`,
+  `L${formatPoint(tipTowardLeft)}`,
+  `Q${formatPoint(tipLeftControl)} ${formatPoint(CURSOR_TIP)}`,
   'Z',
 ].join(' ');

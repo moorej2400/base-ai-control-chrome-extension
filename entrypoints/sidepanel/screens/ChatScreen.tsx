@@ -78,6 +78,11 @@ export default function ChatScreen({
   const [quickOpen, setQuickOpen] = useState(false);
   const [usageHover, setUsageHover] = useState(false);
   const [pageTitle, setPageTitle] = useState('this page');
+  // Keep this above the no-provider return: the catalog can finish empty after
+  // its loading render, and React requires the same hook count on both renders.
+  const [browserControl, setBrowserControl] = useState(
+    session.enabledToolModules.includes(BROWSER_CONTROL_MODULE_ID),
+  );
 
   // Model picker popup (animated).
   const [modelMenu, setModelMenu] = useState(false);
@@ -495,9 +500,6 @@ export default function ChatScreen({
   // BROWSER CONTROL — enables the opt-in browser-control tool module (click,
   // type, navigate) for this chat. Persisted per session in enabledToolModules;
   // the transport reads it from metaRef at send time.
-  const [browserControl, setBrowserControl] = useState(
-    session.enabledToolModules.includes(BROWSER_CONTROL_MODULE_ID),
-  );
   const bcOptions = [
     { value: 'off' as const, label: 'Off' },
     { value: 'on' as const, label: 'On' },

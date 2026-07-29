@@ -329,6 +329,9 @@ function captureConsole() {
 }
 
 function safeStringify(x: unknown): string {
+  if (x instanceof Error) {
+    return `${x.name}: ${x.message}${x.stack ? `\n${x.stack}` : ''}`;
+  }
   try {
     return JSON.stringify(x);
   } catch {

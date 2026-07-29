@@ -69,9 +69,9 @@ export function createCursorGlyph(doc: Document): SVGSVGElement {
   const path = doc.createElementNS('http://www.w3.org/2000/svg', 'path');
   path.setAttribute('d', CURSOR_PATH_D);
   path.setAttribute('fill', '#2f7cf6');
-  path.setAttribute('stroke', '#fff');
+  path.setAttribute('stroke', '#000');
   path.setAttribute('stroke-width', '1.75');
-  path.setAttribute('stroke-linejoin', 'round');
+  path.setAttribute('stroke-linejoin', 'miter');
   glyph.append(path);
   return glyph;
 }

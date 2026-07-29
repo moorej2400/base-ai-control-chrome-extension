@@ -18,11 +18,10 @@ The master shape uses these design-space measurements:
 - base corners: `(4, 42.5)` and `(37, 42.5)`;
 - notch apex: `(20.5, 33.5)`.
 
-The resulting closed path is:
-
-```text
-M20.5 1.5 L37 42.5 L20.5 33.5 L4 42.5 Z
-```
+The three convex outer points use quadratic curves. Each rounded section starts
+and ends one rendered CSS pixel from its corner at the default 30px cursor
+height. The tip uses two joined curves so the visible shape still passes through
+the exact hotspot. The inverted-V notch apex remains sharp.
 
 The outside triangle is bilaterally symmetric. Its half-base is 16.5 units,
 giving an apex half-angle of approximately `atan(16.5 / 41) = 21.9°`. The full
@@ -61,7 +60,10 @@ currently `CURSOR_NOTCH_DEPTH = 9`.
 ## Appearance
 
 - Fill: existing browser-control blue, `#2f7cf6`.
-- Outline: white, 1.75 design units, round joins.
+- Outline: black (`#000`), 1.75 design units, with a miter join that preserves
+  the sharp inverted-V point.
+- Corners: 1 CSS pixel of rounding at the tip and two base corners; the
+  inverted-V point is not rounded.
 - Shadow: `drop-shadow(0 2px 2px rgb(0 0 0 / 48%))` plus
   `drop-shadow(0 6px 6px rgb(0 0 0 / 28%))`, applied to the rendered glyph.
   The first layer defines the cursor edge; the second provides a visible soft
@@ -125,7 +127,8 @@ cursor-arrival acknowledgement.
 ## Verification
 
 - Add a geometry test proving bilateral symmetry, 33-unit base width, 9-unit
-  notch depth, and absence of a transform in the master asset.
+  notch depth, three rounded outer points, one sharp inverted-V point, and
+  absence of a transform in the master asset.
 - Add an overlay test proving the displayed glyph uses the same path, the
   30%-down transform origin, the `-31deg` to `-25deg` ease-in-out wobble, the
   layered downward shadow, and the reduced-motion `-28deg` fallback.

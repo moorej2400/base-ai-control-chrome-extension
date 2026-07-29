@@ -4,6 +4,7 @@ import { describe, expect, it } from 'vitest';
 import {
   CURSOR_BASE_WIDTH,
   CURSOR_CENTER_X,
+  CURSOR_CORNER_TRIM_PX,
   CURSOR_GLYPH_LEFT,
   CURSOR_GLYPH_TOP,
   CURSOR_HEIGHT,
@@ -31,7 +32,13 @@ describe('cursor appearance', () => {
     expect(CURSOR_HEIGHT).toBe(41);
     expect(CURSOR_NOTCH_DEPTH).toBe(9);
     expect(CURSOR_TIP).toEqual({ x: CURSOR_CENTER_X, y: 1.5 });
-    expect(CURSOR_PATH_D).toBe('M20.5 1.5 L37 42.5 L20.5 33.5 L4 42.5 Z');
+    expect(CURSOR_CORNER_TRIM_PX).toBe(1);
+    expect(CURSOR_PATH_D.match(/\bQ/g)).toHaveLength(4);
+    expect(CURSOR_PATH_D).toMatch(/^M20\.5 1\.5 Q/);
+    expect(CURSOR_PATH_D).toContain('Q37 42.5');
+    expect(CURSOR_PATH_D).toContain('Q4 42.5');
+    expect(CURSOR_PATH_D).toMatch(/Q[^Q]+ 20\.5 1\.5 Z$/);
+    expect(CURSOR_PATH_D).toContain('L20.5 33.5');
   });
 
   it('keeps the public SVG upright and synchronized', () => {
@@ -39,6 +46,8 @@ describe('cursor appearance', () => {
 
     expect(svg).toContain('viewBox="0 0 41 45"');
     expect(svg).toContain(`d="${CURSOR_PATH_D}"`);
+    expect(svg).toContain('stroke="#000"');
+    expect(svg).toContain('stroke-linejoin="miter"');
     expect(svg).not.toMatch(/transform=/);
   });
 
@@ -135,7 +144,10 @@ describe('cursor appearance', () => {
     const glyph = createCursorGlyph(document);
 
     expect(glyph.getAttribute('viewBox')).toBe(`0 0 ${CURSOR_VIEWBOX_WIDTH} ${CURSOR_VIEWBOX_HEIGHT}`);
-    expect(glyph.querySelector('path')?.getAttribute('d')).toBe(CURSOR_PATH_D);
+    const path = glyph.querySelector('path');
+    expect(path?.getAttribute('d')).toBe(CURSOR_PATH_D);
+    expect(path?.getAttribute('stroke')).toBe('#000');
+    expect(path?.getAttribute('stroke-linejoin')).toBe('miter');
     view.dispose();
   });
 
