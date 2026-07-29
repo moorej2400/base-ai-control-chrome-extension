@@ -1,4 +1,80 @@
 import type { Point } from './cursor-path';
+import {
+  CURSOR_GLYPH_LEFT,
+  CURSOR_GLYPH_TOP,
+  CURSOR_PATH_D,
+  CURSOR_RENDERED_HEIGHT,
+  CURSOR_RENDERED_WIDTH,
+  CURSOR_TRANSFORM_ORIGIN_X,
+  CURSOR_TRANSFORM_ORIGIN_Y,
+  CURSOR_VIEWBOX_HEIGHT,
+  CURSOR_VIEWBOX_WIDTH,
+} from './cursor-geometry';
+
+export const CURSOR_VIEW_STYLES = `
+  .cursor {
+    position: fixed;
+    width: 0;
+    height: 0;
+    opacity: 0;
+    transition: opacity .12s;
+  }
+  .cursor-glyph {
+    position: absolute;
+    left: ${CURSOR_GLYPH_LEFT}px;
+    top: ${CURSOR_GLYPH_TOP}px;
+    width: ${CURSOR_RENDERED_WIDTH}px;
+    height: ${CURSOR_RENDERED_HEIGHT}px;
+    transform-origin: ${CURSOR_TRANSFORM_ORIGIN_X}px ${CURSOR_TRANSFORM_ORIGIN_Y}px;
+    filter:
+      drop-shadow(0 2px 2px rgb(0 0 0 / 48%))
+      drop-shadow(0 6px 6px rgb(0 0 0 / 28%));
+    animation: cursor-wobble 1.6s ease-in-out infinite alternate;
+  }
+  .cursor::after {
+    content: '';
+    position: absolute;
+    box-sizing: border-box;
+    width: 18px;
+    height: 18px;
+    border: 2px solid #2f7cf6;
+    border-radius: 50%;
+    opacity: 0;
+    transform: translate(-9px, -9px) scale(.2);
+  }
+  .cursor.pulse::after {
+    animation: cursor-pulse .24s ease-out;
+  }
+  @keyframes cursor-wobble {
+    from { transform: rotate(-31deg); }
+    to { transform: rotate(-25deg); }
+  }
+  @keyframes cursor-pulse {
+    from { opacity: 1; transform: translate(-9px, -9px) scale(.2); }
+    to { opacity: 0; transform: translate(-9px, -9px) scale(1); }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .cursor-glyph {
+      animation: none;
+      transform: rotate(-28deg);
+    }
+  }
+`;
+
+export function createCursorGlyph(doc: Document): SVGSVGElement {
+  const glyph = doc.createElementNS('http://www.w3.org/2000/svg', 'svg');
+  glyph.classList.add('cursor-glyph');
+  glyph.setAttribute('viewBox', `0 0 ${CURSOR_VIEWBOX_WIDTH} ${CURSOR_VIEWBOX_HEIGHT}`);
+  glyph.setAttribute('aria-hidden', 'true');
+  const path = doc.createElementNS('http://www.w3.org/2000/svg', 'path');
+  path.setAttribute('d', CURSOR_PATH_D);
+  path.setAttribute('fill', '#2f7cf6');
+  path.setAttribute('stroke', '#fff');
+  path.setAttribute('stroke-width', '1.75');
+  path.setAttribute('stroke-linejoin', 'round');
+  glyph.append(path);
+  return glyph;
+}
 
 export class CursorView {
   readonly host: HTMLElement;
@@ -14,9 +90,10 @@ export class CursorView {
     Object.assign(this.host.style, { position: 'fixed', inset: '0', pointerEvents: 'none', zIndex: '2147483646' });
     const shadow = this.host.attachShadow({ mode: 'closed' });
     const style = doc.createElement('style');
-    style.textContent = `.cursor { position: fixed; width: 18px; height: 24px; opacity: 0; transform: translate(-2px,-2px); transition: opacity .12s; } .cursor::before { content: ''; display:block; width:0; height:0; border-left: 10px solid #2f7cf6; border-top: 7px solid transparent; border-bottom: 7px solid transparent; filter: drop-shadow(0 1px 2px #0008); } .pulse { animation: pulse .24s ease-out; } @keyframes pulse { 0% { filter: drop-shadow(0 0 0 #2f7cf6); } 100% { filter: drop-shadow(0 0 12px #2f7cf600); } }`;
+    style.textContent = CURSOR_VIEW_STYLES;
     this.cursor = doc.createElement('div');
     this.cursor.className = 'cursor';
+    this.cursor.append(createCursorGlyph(doc));
     shadow.append(style, this.cursor);
     doc.documentElement.append(this.host);
   }

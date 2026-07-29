@@ -62,7 +62,10 @@ currently `CURSOR_NOTCH_DEPTH = 9`.
 
 - Fill: existing browser-control blue, `#2f7cf6`.
 - Outline: white, 1.75 design units, round joins.
-- Shadow: subtle dark drop shadow applied by the page overlay.
+- Shadow: `drop-shadow(0 2px 2px rgb(0 0 0 / 48%))` plus
+  `drop-shadow(0 6px 6px rgb(0 0 0 / 28%))`, applied to the rendered glyph.
+  The first layer defines the cursor edge; the second provides a visible soft
+  shadow below it.
 - Source asset: upright, with no `transform` or baked-in angle.
 - Canvas: `viewBox="0 0 41 45"` with
   `preserveAspectRatio="xMidYMid meet"`.
@@ -73,16 +76,36 @@ currently `CURSOR_NOTCH_DEPTH = 9`.
 The shape is intentionally closer to a precise desktop pointer than a broad map
 marker. The 33-unit base sits between the reviewed 30- and 36-unit options.
 
+## Idle motion
+
+While visible, the rendered glyph continuously rocks between `-31deg` and
+`-25deg` around its normal `-28deg` display angle:
+
+```text
+animation: cursor-wobble 1.6s ease-in-out infinite alternate
+```
+
+The animation rotates only the glyph layer. Its transform origin is on the
+cursor centerline, 30% of the 41-unit cursor body height below the tip:
+`(20.5, 13.8)` in the upright SVG. The position wrapper remains fixed at the
+requested click coordinate. The click target remains the SVG tip before the
+idle transform, while the visible tip moves slightly around the lower pivot.
+This gives the cursor a body-led sway instead of pinning the motion at its tip.
+
+When `prefers-reduced-motion: reduce` is active, disable the wobble and render
+the glyph at the static `-28deg` display angle. The click pulse uses a separate
+layer so it does not replace the persistent shadow or rotation animation.
+
 ## Overlay transform and hotspot
 
 The overlay positions an unrotated wrapper at the target point. Inside it, the
-glyph is offset so its SVG tip coincides with wrapper origin `(0, 0)`. The glyph
-then rotates `-28deg` around that exact tip.
+glyph is offset so its SVG tip coincides with wrapper origin `(0, 0)` before
+rotation. The glyph then rotates around the 30%-down body pivot.
 
 This separation preserves the targeting invariant:
 
 ```text
-rendered SVG tip = requested overlay coordinate
+unrotated SVG tip = requested overlay coordinate
 ```
 
 Changing the display angle must never change the resolved browser target or the
@@ -93,22 +116,23 @@ cursor-arrival acknowledgement.
 1. Replace `public/browser-cursor.svg` with the upright 33-unit geometry.
 2. Replace the CSS border triangle in `CursorView` with the same inline SVG
    geometry.
-3. Apply rotation only in overlay CSS and use the tip as `transform-origin`.
-4. Preserve existing cursor movement, pulse, accessibility, pointer-events,
+3. Apply rotation, shadow, and wobble only in overlay CSS and use the
+   30%-down centerline point as `transform-origin`.
+4. Keep the click pulse on a separate layer from the animated glyph.
+5. Preserve existing cursor movement, pulse, accessibility, pointer-events,
    stale-host replacement, and arrival behavior.
 
 ## Verification
 
 - Add a geometry test proving bilateral symmetry, 33-unit base width, 9-unit
   notch depth, and absence of a transform in the master asset.
-- Add an overlay test proving the displayed glyph uses the same path and a
-  tip-origin `-28deg` rotation.
-- Test hotspot invariance numerically: after applying the glyph offset and the
-  `-28deg` rotation matrix around the tip, the transformed tip must equal the
-  requested overlay coordinate before and after rotation (within floating-point
-  tolerance).
+- Add an overlay test proving the displayed glyph uses the same path, the
+  30%-down transform origin, the `-31deg` to `-25deg` ease-in-out wobble, the
+  layered downward shadow, and the reduced-motion `-28deg` fallback.
+- Test the pivot numerically: it must remain fixed through the wobble rotation
+  range, while the tip must move around it.
 - Render the upright SVG at multiple sizes and inspect it visually.
 - Reload the real extension, exercise cursor movement between two targets, and
-  inspect screenshots to confirm the glyph looks clean and its tip stays on the
-  target.
+  inspect screenshots to confirm the glyph looks clean, the lower-body pivot
+  stays visually stable, and the tip moves slightly through the wobble.
 - Confirm the Chrome extension Errors page remains empty.

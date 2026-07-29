@@ -56,6 +56,16 @@ The parent owns conversation continuity, top-level tool choice, and final user
 responses. It should keep broad context and delegate narrow, repeatable work to
 sub-agents when a specialist loop would be cleaner than one large prompt.
 
+### Page Freshness
+
+Page observations from earlier turns are historical context, not current page
+state. Before answering a question that could depend on the current page or
+visible UI, the parent must inspect the page in the same turn: use
+`take_snapshot` for dynamic or interactive UI and `read_page_content` for
+document or article content. It must inspect again after navigation, browser
+actions, user interaction, or any possible page update; if inspection is
+unavailable, it should say so rather than guess.
+
 ## Tool Modules
 
 Tools are grouped as `ToolModule`s in `lib/tools/`. Each module can:

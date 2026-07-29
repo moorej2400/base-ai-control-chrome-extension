@@ -11,3 +11,5 @@ scripts/.copilot-models.json
 *.log
 .DS_Store
 debug-panel-*.png
+.superpowers/brainstorm/**/.server.pid
+.superpowers/brainstorm/**/.server-stopped
