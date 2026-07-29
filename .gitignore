@@ -11,5 +11,6 @@ scripts/.copilot-models.json
 *.log
 .DS_Store
 debug-panel-*.png
-.superpowers/brainstorm/**/.server.pid
-.superpowers/brainstorm/**/.server-stopped
+# Superpowers scratch artifacts must never enter the repository.
+.superpowers/
+**/.superpowers/
