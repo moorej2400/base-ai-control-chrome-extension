@@ -35,9 +35,7 @@ export class LegacyCommandHandler {
       case 'page.actBatch': {
         return executeActionBatch(command.operations, async (operation) => {
           const result = await this.executeBatchOperation(operation as Extract<BrowserCommand, { type: 'page.actBatch' }>['operations'][number]);
-          if (isFailedDriverResult(result)) {
-            return { ...result, code: result.error === 'ACTION_REQUIRES_APPROVAL' ? result.error : undefined };
-          }
+          if (isFailedDriverResult(result)) return result;
           return result as { ok: boolean; navigated?: boolean };
         });
       }

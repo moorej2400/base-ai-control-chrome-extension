@@ -40,7 +40,7 @@ driver/
     snapshot-*.ts          DOM/AX snapshot → opaque reference tree
     input.ts               trusted CDP input at cursor-matched coordinates
   extension/     compatibility fallback for isolated callers/tests
-background/      coordinator, session/turn records, leases, approvals, native port
+background/      coordinator, session/turn records, leases, queue, native port
 client/          side-panel runtime-port client and BrowserDriver adapter
 overlay/         lazily injected cursor animation and arrival acknowledgements
 ```
@@ -59,5 +59,7 @@ overlay/         lazily injected cursor animation and arrival acknowledgements
 
 References are opaque and bound to one browser session, tab, and document
 revision. CDP input uses the same resolved coordinate as the visible cursor.
-Only the side-panel approval port can authorize high-impact actions; an MCP
-client can request and resume an action but cannot approve it.
+When browser control is enabled for a client, actions execute through the shared
+coordinator without a second per-action approval prompt. Host permissions,
+restricted URLs, sessions, turns, tab leases, and advanced-operation limits
+still apply.

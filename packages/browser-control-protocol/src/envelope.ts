@@ -56,12 +56,6 @@ export const BrowserControlRequestSchema = z.object({
     return;
   }
 
-  if (request.command.type === 'approval.resolve') {
-    if (request.browserSessionId || request.turnId) {
-      context.addIssue({ code: 'custom', message: 'approval.resolve cannot include session or turn identifiers' });
-    }
-    return;
-  }
 
   requireSession();
   requireTurn();

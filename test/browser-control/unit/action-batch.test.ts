@@ -15,12 +15,12 @@ describe('action batches', () => {
     expect(result.stopped).toBe('navigated');
   });
 
-  it('stops cleanly at approval or cancellation boundaries', async () => {
+  it('stops cleanly at a failed action boundary', async () => {
     const result = await executeActionBatch(
       [{ type: 'click', ref: 'a' }, { type: 'click', ref: 'b' }],
-      async () => ({ ok: false, code: 'ACTION_REQUIRES_APPROVAL' }),
+      async () => ({ ok: false }),
     );
-    expect(result.stopped).toBe('approval');
+    expect(result.stopped).toBe('failed');
     expect(result.results).toHaveLength(1);
   });
 });

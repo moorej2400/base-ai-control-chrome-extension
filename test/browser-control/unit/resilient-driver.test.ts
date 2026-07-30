@@ -1,10 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import { ResilientDriverFactory } from '@/lib/agent-tools/browser-control/driver/resilient-driver';
-import type {
-  ApprovalAwareBrowserDriver,
-  BrowserDriver,
-  SessionDriverFactory,
-} from '@/lib/agent-tools/browser-control/driver/types';
+import type { BrowserDriver, SessionDriverFactory } from '@/lib/agent-tools/browser-control/driver/types';
 
 const tab = {
   id: 7,
@@ -84,28 +80,5 @@ describe('ResilientDriverFactory', () => {
       error: 'A screenshot was already captured this turn; use take_snapshot and direct controls.',
     });
     expect(fallback.screenshot).toHaveBeenCalledTimes(1);
-  });
-
-  it('preserves label-aware approval context across the resilient wrapper', async () => {
-    const { primary, fallback, primaryFactory } = createDrivers();
-    const primaryContext = vi.fn(async () => ({
-      documentRevision: 'primary-revision',
-      target: { name: 'Delete account' },
-    }));
-    const fallbackContext = vi.fn(async () => ({
-      documentRevision: 'fallback-revision',
-      target: { name: 'Delete account' },
-    }));
-    Object.assign(primary, { approvalContext: primaryContext });
-    Object.assign(fallback, { approvalContext: fallbackContext });
-    const driver = new ResilientDriverFactory(primaryFactory, () => fallback)
-      .forSession('session-a') as ApprovalAwareBrowserDriver;
-
-    await expect(driver.approvalContext('cdp-ref')).resolves.toEqual({
-      documentRevision: 'primary-revision',
-      target: { name: 'Delete account' },
-    });
-    expect(primaryContext).toHaveBeenCalledWith('cdp-ref');
-    expect(fallbackContext).not.toHaveBeenCalled();
   });
 });

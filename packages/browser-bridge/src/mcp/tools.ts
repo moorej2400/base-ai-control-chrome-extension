@@ -18,8 +18,6 @@ export const MCP_TOOL_DEFINITIONS: McpToolDefinition[] = [
   ['browser_press_key', 'Send a key to the claimed tab.'],
   ['browser_scroll', 'Scroll an opaque reference or the page.'],
   ['browser_act_batch', 'Run up to 20 ordered browser actions.'],
-  ['browser_approval_status', 'Read this session’s approval challenge.'],
-  ['browser_resume_approved_action', 'Resume an approved challenge.'],
   ['browser_end_session', 'End this MCP browser-control session.'],
 ].map(([name, description]) => ({ name, description }));
 
@@ -43,8 +41,6 @@ export function commandForTool(name: string, args: Args): Record<string, unknown
     case 'browser_press_key': return { type: 'page.key', key: args.key };
     case 'browser_scroll': return { type: 'page.scroll', ref: args.ref, deltaY: args.deltaY };
     case 'browser_act_batch': return { type: 'page.actBatch', operations: args.operations };
-    case 'browser_approval_status': return { type: 'approval.status' };
-    case 'browser_resume_approved_action': return { type: 'approval.resume', approvalId: args.approvalId };
     case 'browser_end_session': return { type: 'session.end' };
     default: throw new Error(`Unknown MCP browser tool: ${name}`);
   }

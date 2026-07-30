@@ -64,7 +64,7 @@ Embedded agent or MCP client
 ```
 
 Both embedded and MCP clients converge on the same coordinator, lease policy,
-approval policy, queue, and driver. This is a strong design and should remain.
+queue, and driver. This is a strong design and should remain.
 
 Primary evidence:
 

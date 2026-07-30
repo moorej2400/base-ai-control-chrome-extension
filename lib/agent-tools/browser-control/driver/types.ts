@@ -112,16 +112,6 @@ export interface SessionDriverFactory {
   releaseSession?(browserSessionId: string): Promise<void>;
 }
 
-export interface ApprovalTargetContext {
-  documentRevision: string;
-  target?: { role?: string; name?: string; destination?: string };
-}
-
-/** Optional capability used only to bind high-impact confirmations to a ref. */
-export interface ApprovalAwareBrowserDriver extends BrowserDriver {
-  approvalContext(ref?: string): Promise<ApprovalTargetContext>;
-}
-
 export function singleDriverFactory(driver: BrowserDriver): SessionDriverFactory {
   return { forSession: () => driver };
 }

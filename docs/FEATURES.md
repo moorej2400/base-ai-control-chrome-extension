@@ -50,7 +50,7 @@ Legend: ✅ real & working · 🟡 partial · ⛔ deferred (see _Deferred_ at th
   pages. (`lib/tools/jira/`)
 - ✅ **Dual-client browser control** — the side-panel agent and local MCP
   client share session/turn leases, a CDP-first resilient driver, visible
-  cursor, and approval policy. Embedded sessions and the local MCP toggle
+  cursor, and shared coordinator policy. Embedded sessions and the local MCP toggle
   default on; the companion native host is user-scoped and origin-restricted.
   The full embedded bench, normal MCP transport-close cleanup, exercised cursor
   alignment, and reload/error audit pass live. See

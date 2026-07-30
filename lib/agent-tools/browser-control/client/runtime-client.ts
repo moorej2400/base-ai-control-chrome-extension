@@ -8,7 +8,6 @@ import {
 } from '@ai-page-chat/browser-control-protocol';
 
 export const BROWSER_CONTROL_RUNTIME_PORT = 'ai-page-chat-browser-control';
-export const BROWSER_CONTROL_APPROVAL_UI_PORT = 'ai-page-chat-browser-control-approval-ui';
 
 export interface RuntimePort {
   postMessage(message: BrowserControlRequest): void;

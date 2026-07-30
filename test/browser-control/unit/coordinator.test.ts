@@ -4,7 +4,6 @@ import { BrowserControlRouter } from '../../../lib/agent-tools/browser-control/b
 import { MemorySessionStorage, SessionStore } from '../../../lib/agent-tools/browser-control/background/session-store';
 import { TabLeaseStore } from '../../../lib/agent-tools/browser-control/background/tab-leases';
 import { TabQueue } from '../../../lib/agent-tools/browser-control/background/tab-queue';
-import { ApprovalStore } from '../../../lib/agent-tools/browser-control/background/approval-store';
 import type { BrowserDriver } from '../../../lib/agent-tools/browser-control/driver/types';
 import { PROTOCOL_VERSION } from '@ai-page-chat/browser-control-protocol';
 
@@ -67,41 +66,32 @@ async function startTurn(coordinator: BrowserControlCoordinator) {
 }
 
 describe('BrowserControlCoordinator', () => {
-  it('holds a close action until the extension UI approves its exact challenge', async () => {
+  it('closes a claimed tab without a user approval step', async () => {
     const driver = makeDriver();
     driver.closeTab = vi.fn().mockResolvedValue({ ok: true });
     const sessions = new SessionStore({
       storage: new MemorySessionStorage(), createId: () => 'session-1', createToken: () => 'token', hashToken: async () => 'hash',
     });
-    const approvals = new ApprovalStore(() => 'approval-1', async () => 'command-hash');
     const coordinator = new BrowserControlCoordinator({
-      driver, sessions, leases: new TabLeaseStore(), queue: new TabQueue(), approvals,
+      driver, sessions, leases: new TabLeaseStore(), queue: new TabQueue(),
       canAccessTab: async () => true, advancedSettingEnabled: () => false, createTurnId: () => 'turn-1',
     });
     const { browserSessionId, turnId } = await startTurn(coordinator);
     await coordinator.handle(connection, { protocolVersion: PROTOCOL_VERSION, requestId: 'claim', browserSessionId, turnId, command: { type: 'tabs.claim', tabId: 7 } });
 
-    const challenged = await coordinator.handle(connection, { protocolVersion: PROTOCOL_VERSION, requestId: 'close', browserSessionId, turnId, command: { type: 'tabs.close', tabId: 7 } });
-    expect(challenged.result).toMatchObject({ ok: false, code: 'ACTION_REQUIRES_APPROVAL', approval: { approvalId: 'approval-1' } });
-    expect(driver.closeTab).not.toHaveBeenCalled();
+    const closed = await coordinator.handle(connection, { protocolVersion: PROTOCOL_VERSION, requestId: 'close', browserSessionId, turnId, command: { type: 'tabs.close', tabId: 7 } });
 
-    await coordinator.handle({ id: 'approval-ui', origin: 'extension-ui', advancedEnabled: false }, {
-      protocolVersion: PROTOCOL_VERSION, requestId: 'approve', command: { type: 'approval.resolve', approvalId: 'approval-1', decision: 'approve' },
-    });
-    const resumed = await coordinator.handle(connection, { protocolVersion: PROTOCOL_VERSION, requestId: 'resume', browserSessionId, turnId, command: { type: 'approval.resume', approvalId: 'approval-1' } });
-
-    expect(resumed).toMatchObject({ ok: true, result: { ok: true } });
+    expect(closed).toMatchObject({ ok: true, result: { ok: true } });
     expect(driver.closeTab).toHaveBeenCalledWith(7);
   });
 
-  it('stops an action batch at an approval challenge before running its later actions', async () => {
-    const driver = makeDriver() as BrowserDriver & { approvalContext(): Promise<{ documentRevision: string; target: { name: string } }> };
-    driver.approvalContext = vi.fn().mockResolvedValue({ documentRevision: 'revision-1', target: { name: 'Delete account' } });
+  it('executes a destructive-looking action batch without an approval challenge', async () => {
+    const driver = makeDriver();
     driver.click = vi.fn().mockResolvedValue({ ok: true, navigated: false, url: 'https://example.test', title: 'Test' });
     const coordinator = new BrowserControlCoordinator({
       driver,
       sessions: new SessionStore({ storage: new MemorySessionStorage(), createId: () => 'session-1', createToken: () => 'token', hashToken: async () => 'hash' }),
-      leases: new TabLeaseStore(), queue: new TabQueue(), approvals: new ApprovalStore(() => 'approval-1', async () => 'hash'),
+      leases: new TabLeaseStore(), queue: new TabQueue(),
       canAccessTab: async () => true, advancedSettingEnabled: () => false, createTurnId: () => 'turn-1',
     });
     const { browserSessionId, turnId } = await startTurn(coordinator);
@@ -112,8 +102,8 @@ describe('BrowserControlCoordinator', () => {
       command: { type: 'page.actBatch', operations: [{ type: 'click', ref: 'delete-ref' }, { type: 'click', ref: 'later-ref' }] },
     });
 
-    expect(response).toMatchObject({ ok: true, result: { stopped: 'approval' } });
-    expect(driver.click).not.toHaveBeenCalled();
+    expect(response).toMatchObject({ ok: true, result: { stopped: 'completed' } });
+    expect(driver.click).toHaveBeenCalledTimes(2);
   });
 
   it('orphans the actual browser session and lease when its connection drops', async () => {

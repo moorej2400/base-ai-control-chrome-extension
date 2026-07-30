@@ -1,5 +1,4 @@
 import { z } from 'zod';
-import { ApprovalDecisionSchema } from './approval';
 import { CursorArrivalSchema, CursorMoveSchema } from './cursor';
 
 const NodeRefSchema = z.string().min(1);
@@ -46,9 +45,6 @@ export const BrowserCommandSchema = z.discriminatedUnion('type', [
   z.object({ type: z.literal('page.actBatch'), operations: z.array(BatchOperationSchema).min(1).max(20) }).strict(),
   z.object({ type: z.literal('page.evaluate'), expression: z.string().min(1) }).strict(),
   z.object({ type: z.literal('cdp.execute'), method: z.string().min(1), params: z.record(z.string(), z.unknown()).optional() }).strict(),
-  z.object({ type: z.literal('approval.status') }).strict(),
-  z.object({ type: z.literal('approval.resume'), approvalId: z.string().min(1) }).strict(),
-  z.object({ type: z.literal('approval.resolve'), approvalId: z.string().min(1), decision: ApprovalDecisionSchema }).strict(),
   CursorMoveSchema,
   CursorArrivalSchema,
 ]);
@@ -62,7 +58,6 @@ const IDEMPOTENT_COMMAND_TYPES = new Set<BrowserCommand['type']>([
   'page.snapshot',
   'page.screenshot',
   'page.info',
-  'approval.status',
 ]);
 
 export function isIdempotentCommand(command: BrowserCommand): boolean {

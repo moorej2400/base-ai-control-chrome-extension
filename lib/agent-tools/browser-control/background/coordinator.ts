@@ -4,14 +4,12 @@ import {
   type BrowserControlRequest,
   type BrowserControlResponse,
 } from '@ai-page-chat/browser-control-protocol';
-import { singleDriverFactory, type ApprovalAwareBrowserDriver, type BrowserDriver, type SessionDriverFactory } from '../driver/types';
+import { singleDriverFactory, type BrowserDriver, type SessionDriverFactory } from '../driver/types';
 import { assertAdvancedCapability, assertTargetCapabilities, CapabilityError, type TargetCapabilities } from './capabilities';
 import { isFailedDriverResult, LegacyCommandHandler } from './legacy-command-handler';
 import { type BrowserSessionOrigin, SessionStore, SessionStoreError } from './session-store';
 import { TabLeaseError, TabLeaseStore } from './tab-leases';
 import { TabQueue } from './tab-queue';
-import { ApprovalError, ApprovalStore } from './approval-store';
-import { ApprovalPolicy } from './approval-policy';
 import { executeActionBatch } from './action-batch';
 
 export interface BrowserConnectionContext {
@@ -27,9 +25,6 @@ export interface BrowserControlCoordinatorOptions extends TargetCapabilities {
   sessions: SessionStore;
   leases: TabLeaseStore;
   queue: TabQueue;
-  approvals?: ApprovalStore;
-  approvalPolicy?: ApprovalPolicy;
-  onApproval?: (challenge: { approvalId: string; summary: string; expiresAt: number }) => void;
   externalControlStatus?: () => { enabled: boolean; state: string; error?: string };
   createTurnId?: () => string;
 }
@@ -42,7 +37,6 @@ export class BrowserControlCoordinator {
   private readonly drivers: SessionDriverFactory;
   private readonly turns = new Map<string, Set<string>>();
   private readonly targetTabs = new Map<string, number>();
-  private readonly pendingApprovals = new Map<string, { sessionId: string; turnId: string; tabId: number; documentRevision: string; command: BrowserCommand }>();
   private readonly createTurnId: () => string;
 
   constructor(private readonly options: BrowserControlCoordinatorOptions) {
@@ -55,12 +49,7 @@ export class BrowserControlCoordinator {
   async handle(connection: BrowserConnectionContext, request: BrowserControlRequest): Promise<BrowserControlResponse> {
     try {
       const result = await this.dispatch(connection, request);
-      if (isFailedDriverResult(result)) {
-        if (result.error === 'ACTION_REQUIRES_APPROVAL') {
-          return { protocolVersion: PROTOCOL_VERSION, requestId: request.requestId, ok: true, result };
-        }
-        return this.failure(request.requestId, 'UNSUPPORTED_OPERATION', result.error);
-      }
+      if (isFailedDriverResult(result)) return this.failure(request.requestId, 'UNSUPPORTED_OPERATION', result.error);
       return { protocolVersion: PROTOCOL_VERSION, requestId: request.requestId, ok: true, result };
     } catch (error) {
       return this.fromError(request.requestId, error);
@@ -77,18 +66,6 @@ export class BrowserControlCoordinator {
     }
   }
 
-  /** Safe, command-free challenge summaries for the privileged side-panel UI. */
-  pendingApprovalNotifications(): Array<{ approvalId: string; summary: string; expiresAt: number }> {
-    const approvals = this.options.approvals;
-    if (!approvals) return [];
-    const summaries: Array<{ approvalId: string; summary: string; expiresAt: number }> = [];
-    for (const [approvalId, pending] of this.pendingApprovals) {
-      const challenge = approvals.status(pending.sessionId).find((item) => item.approvalId === approvalId);
-      if (challenge) summaries.push({ approvalId: challenge.approvalId, summary: challenge.summary, expiresAt: challenge.expiresAt });
-    }
-    return summaries;
-  }
-
   private async dispatch(connection: BrowserConnectionContext, request: BrowserControlRequest): Promise<unknown> {
     const { command } = request;
     if (command.type === 'session.start') return this.startSession(connection, command);
@@ -100,8 +77,6 @@ export class BrowserControlCoordinator {
       protocolVersion: PROTOCOL_VERSION,
       externalControl: this.options.externalControlStatus?.() ?? { enabled: false, state: 'disabled' },
     };
-    if (command.type === 'approval.resolve') return this.resolveApproval(connection, command.approvalId, command.decision);
-
     const sessionId = this.requireSession(request);
     const turnId = this.requireTurn(request);
     await this.assertActiveSession(sessionId, connection.id);
@@ -124,12 +99,6 @@ export class BrowserControlCoordinator {
         return this.createAndClaimTab(sessionId, connection, command.url);
       case 'tabs.close':
         return this.closeTab(sessionId, turnId, command.tabId);
-      case 'approval.status':
-        return {
-          approvals: (this.options.approvals?.status(sessionId) ?? []).map(({ approvalId, summary, expiresAt, decision }) => ({ approvalId, summary, expiresAt, decision })),
-        };
-      case 'approval.resume':
-        return this.resumeApproval(sessionId, turnId, command.approvalId, connection);
       case 'cdp.execute':
         assertAdvancedCapability(connection.advancedEnabled, this.options);
         return this.unsupported('CDP command execution requires the CDP driver.');
@@ -236,14 +205,10 @@ export class BrowserControlCoordinator {
     }
   }
 
-  private async closeTab(sessionId: string, turnId: string, tabId?: number, approved = false): Promise<unknown> {
-    const driver = this.driverFor(sessionId);
+  private async closeTab(sessionId: string, turnId: string, tabId?: number): Promise<unknown> {
+    const driver = this.driverFor(sessionId, turnId);
     const targetId = tabId ?? this.targetTabs.get(sessionId) ?? (await driver.getTargetTab()).id;
     this.options.leases.assertOwned(targetId, sessionId);
-    if (!approved) {
-      const challenge = await this.requestApproval(sessionId, turnId, targetId, { type: 'tabs.close', tabId: targetId }, driver);
-      if (challenge) return challenge;
-    }
     const result = await driver.closeTab(targetId);
     if (!isFailedDriverResult(result)) {
       this.options.leases.release(targetId, sessionId);
@@ -258,7 +223,6 @@ export class BrowserControlCoordinator {
     request: BrowserControlRequest,
     command: BrowserCommand,
     connection: BrowserConnectionContext,
-    approved = false,
   ): Promise<unknown> {
     const driver = this.driverFor(sessionId, request.turnId);
     const selectedTabId = request.tabId ?? this.targetTabs.get(sessionId);
@@ -274,81 +238,24 @@ export class BrowserControlCoordinator {
     if (command.type === 'page.info') return target;
     if (command.type === 'page.actBatch') {
       return this.options.queue.enqueue(tabId, request.requestId, async () => this.executeControlledBatch(
-        sessionId, this.requireTurn(request), tabId, command.operations, driver,
+        tabId, command.operations, driver,
       ));
-    }
-    if (!approved) {
-      const challenge = await this.requestApproval(sessionId, this.requireTurn(request), tabId, command, driver);
-      if (challenge) return challenge;
     }
 
     return this.options.queue.enqueue(tabId, request.requestId, async () => new LegacyCommandHandler(driver).execute(command));
   }
 
   private async executeControlledBatch(
-    sessionId: string,
-    turnId: string,
     tabId: number,
     operations: Extract<BrowserCommand, { type: 'page.actBatch' }>['operations'],
     driver: BrowserDriver,
   ): Promise<unknown> {
     return executeActionBatch(operations, async (operation) => {
       const command = commandForBatchOperation(operation as Extract<BrowserCommand, { type: 'page.actBatch' }>['operations'][number]);
-      const challenge = await this.requestApproval(sessionId, turnId, tabId, command, driver);
-      if (challenge) return challenge as { ok: boolean; code?: string };
       const result = await new LegacyCommandHandler(driver).execute(command);
-      if (isFailedDriverResult(result)) return { ...result, code: result.error === 'ACTION_REQUIRES_APPROVAL' ? result.error : undefined };
+      if (isFailedDriverResult(result)) return result;
       return result as { ok: boolean; navigated?: boolean };
     });
-  }
-
-  private async requestApproval(
-    sessionId: string,
-    turnId: string,
-    tabId: number,
-    command: BrowserCommand,
-    driver: BrowserDriver,
-  ): Promise<unknown | undefined> {
-    const policy = this.options.approvalPolicy ?? new ApprovalPolicy();
-    const ref = 'ref' in command && typeof command.ref === 'string' ? command.ref : undefined;
-    const context = isApprovalAwareDriver(driver) ? await driver.approvalContext(ref) : { documentRevision: `tab:${tabId}` };
-    const classification = policy.classify(command, context.target);
-    if (!classification.requiresApproval || !this.options.approvals) return undefined;
-    const challenge = await this.options.approvals.create({
-      sessionId,
-      turnId,
-      tabId,
-      documentRevision: context.documentRevision,
-      command,
-      summary: classification.summary ?? 'Browser action requires approval',
-    });
-    this.pendingApprovals.set(challenge.approvalId, { sessionId, turnId, tabId, documentRevision: context.documentRevision, command });
-    this.options.onApproval?.({ approvalId: challenge.approvalId, summary: challenge.summary, expiresAt: challenge.expiresAt });
-    return {
-      ok: false,
-      error: 'ACTION_REQUIRES_APPROVAL',
-      code: 'ACTION_REQUIRES_APPROVAL',
-      approval: { approvalId: challenge.approvalId, summary: challenge.summary, expiresAt: challenge.expiresAt },
-    };
-  }
-
-  private async resumeApproval(sessionId: string, turnId: string, approvalId: string, connection: BrowserConnectionContext): Promise<unknown> {
-    const pending = this.pendingApprovals.get(approvalId);
-    if (!pending || pending.sessionId !== sessionId || pending.turnId !== turnId) {
-      throw new ApprovalError('APPROVAL_NOT_FOUND', 'Approval does not belong to this browser turn.');
-    }
-    if (!this.options.approvals) return this.unsupported('Approval policy is not initialized yet.');
-    await this.options.approvals.consume(approvalId, pending);
-    this.pendingApprovals.delete(approvalId);
-    if (pending.command.type === 'tabs.close') return this.closeTab(sessionId, turnId, pending.tabId, true);
-    return this.runControlledCommand(sessionId, {
-      protocolVersion: PROTOCOL_VERSION,
-      requestId: `approval:${approvalId}`,
-      browserSessionId: sessionId,
-      turnId,
-      tabId: pending.tabId,
-      command: pending.command,
-    }, pending.command, connection, true);
   }
 
   private async selectTab(sessionId: string, turnId: string, tabId: number): Promise<unknown> {
@@ -386,13 +293,6 @@ export class BrowserControlCoordinator {
     throw new CapabilityError('UNSUPPORTED_OPERATION', message);
   }
 
-  private async resolveApproval(connection: BrowserConnectionContext, approvalId: string, decision: 'approve' | 'reject'): Promise<unknown> {
-    if (!this.options.approvals) return this.unsupported('Approval policy is not initialized yet.');
-    await this.options.approvals.resolve(approvalId, decision, connection.origin);
-    if (decision === 'reject') this.pendingApprovals.delete(approvalId);
-    return { resolved: true, approvalId, decision };
-  }
-
   private failure(requestId: string, code: string, message: string): BrowserControlResponse {
     return {
       protocolVersion: PROTOCOL_VERSION,
@@ -403,7 +303,7 @@ export class BrowserControlCoordinator {
   }
 
   private fromError(requestId: string, error: unknown): BrowserControlResponse {
-    if (error instanceof CapabilityError || error instanceof SessionStoreError || error instanceof TabLeaseError || error instanceof ApprovalError) {
+    if (error instanceof CapabilityError || error instanceof SessionStoreError || error instanceof TabLeaseError) {
       return this.failure(requestId, error.code, error.message);
     }
     if (error instanceof Error && error.message === 'TURN_NOT_ACTIVE') {
@@ -413,9 +313,6 @@ export class BrowserControlCoordinator {
   }
 }
 
-function isApprovalAwareDriver(driver: BrowserDriver): driver is ApprovalAwareBrowserDriver {
-  return 'approvalContext' in driver && typeof (driver as Partial<ApprovalAwareBrowserDriver>).approvalContext === 'function';
-}
 
 function commandForBatchOperation(
   operation: Extract<BrowserCommand, { type: 'page.actBatch' }>['operations'][number],

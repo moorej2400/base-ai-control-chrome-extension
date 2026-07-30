@@ -7,7 +7,6 @@ import { TabLeaseStore } from '../lib/agent-tools/browser-control/background/tab
 import { TabQueue } from '../lib/agent-tools/browser-control/background/tab-queue';
 import { CursorState } from '../lib/agent-tools/browser-control/background/cursor-state';
 import { CursorSender } from '../lib/agent-tools/browser-control/background/cursor-sender';
-import { ApprovalStore } from '../lib/agent-tools/browser-control/background/approval-store';
 import { NativeConnectionManager } from '../lib/agent-tools/browser-control/background/native-connection';
 import {
   BROWSER_CONTROL_EXTERNAL_CONFIGURED_KEY,
@@ -56,10 +55,6 @@ function createCoordinator(
     sessions: new SessionStore({ storage: new ChromeSessionStorage() }),
     leases: new TabLeaseStore(),
     queue: new TabQueue(),
-    approvals: new ApprovalStore(),
-    onApproval: (approval) => {
-      void chrome.runtime.sendMessage({ type: 'browser-control.approval', approval }).catch(() => {});
-    },
     externalControlStatus: externalStatus,
     async canAccessTab(tab) {
       try {

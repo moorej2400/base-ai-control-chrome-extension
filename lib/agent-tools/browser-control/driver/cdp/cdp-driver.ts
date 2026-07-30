@@ -1,7 +1,5 @@
 import type {
   ActionResult,
-  ApprovalAwareBrowserDriver,
-  ApprovalTargetContext,
   BrowserDriver,
   DriverError,
   EvaluateResult,
@@ -163,7 +161,7 @@ class CdpDriverCore {
   }
 }
 
-class CdpSessionDriver implements ApprovalAwareBrowserDriver {
+class CdpSessionDriver implements BrowserDriver {
   constructor(
     private readonly core: CdpDriverCore,
     private readonly browserSessionId: string,
@@ -361,22 +359,6 @@ class CdpSessionDriver implements ApprovalAwareBrowserDriver {
       await this.publishCursor(tabId, target.point.overlayX, target.point.overlayY, false);
       await new CdpInput({ send: (method, params) => this.core.transport.send(tabId, method, params) }).scroll(target.point, 500);
     });
-  }
-
-  async approvalContext(ref?: string): Promise<ApprovalTargetContext> {
-    const tab = await this.resolveTab();
-    if (tab.id == null) throw new Error('Target tab has no id.');
-    const documentRevision = this.core.revision(tab.id);
-    if (!ref) return { documentRevision };
-    const node = this.core.snapshots.references().resolve(ref, {
-      browserSessionId: this.browserSessionId,
-      tabId: tab.id,
-      documentRevision,
-    });
-    return {
-      documentRevision,
-      target: node ? { role: node.role, name: node.name } : undefined,
-    };
   }
 
   private async actOnRef(

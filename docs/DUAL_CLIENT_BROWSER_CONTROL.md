@@ -49,11 +49,8 @@ shortcut around the coordinator.
 - CDP attachment explicitly restores Input-domain delivery and target focus.
   This keeps trusted pointer/key events reliable even when another Chrome
   window was previously frontmost.
-- Every close-tab request creates an approval challenge. Only the side-panel
-  approval port can approve or reject it; the originating client resumes the
-  exact bound action afterwards. Target-label classification exists, but the
-  current resilient driver wrapper does not forward its metadata, so those
-  high-impact label challenges are not yet reliable.
+- Once browser control is enabled for a client, claimed-tab actions—including
+  closing a tab—execute directly. There is no per-action approval dialog.
 
 ## External MCP bridge
 
@@ -90,7 +87,7 @@ deliberately does not implement an automatic uninstall/delete operation.
 The loaded extension needs the Chrome `debugger` and `nativeMessaging`
 permissions, plus host access for the page being controlled. `debugger` shows
 Chrome’s normal debugging indicator while attached. The MCP toggle alone does
-not grant page access or bypass confirmations.
+not grant page access.
 
 Validation is layered:
 

@@ -35,14 +35,14 @@ describe('BrowserControlRequestSchema', () => {
     ).toThrow();
   });
 
-  it('allows the privileged approval-resolution envelope without a browser session', () => {
+  it('rejects removed approval commands', () => {
     expect(() =>
       BrowserControlRequestSchema.parse({
         protocolVersion: PROTOCOL_VERSION,
         requestId: 'approval-request',
         command: { type: 'approval.resolve', approvalId: 'approval-1', decision: 'approve' },
       }),
-    ).not.toThrow();
+    ).toThrow();
   });
 
   it('requires session and turn identifiers for tab-bound commands', () => {

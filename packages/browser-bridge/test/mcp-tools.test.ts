@@ -6,7 +6,9 @@ describe('MCP browser tool mapping', () => {
     expect(MCP_TOOL_DEFINITIONS.map((tool) => tool.name)).toEqual(expect.arrayContaining([
       'browser_status', 'browser_claim_tab', 'browser_snapshot', 'browser_click', 'browser_act_batch', 'browser_end_session',
     ]));
-    expect(MCP_TOOL_DEFINITIONS.map((tool) => tool.name)).not.toEqual(expect.arrayContaining(['browser_evaluate', 'browser_cdp_execute']));
+    expect(MCP_TOOL_DEFINITIONS.map((tool) => tool.name)).not.toEqual(expect.arrayContaining([
+      'browser_evaluate', 'browser_cdp_execute', 'browser_approval_status', 'browser_resume_approved_action',
+    ]));
   });
 
   it('maps every public browser action to one shared protocol command', () => {

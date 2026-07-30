@@ -2,7 +2,7 @@
 
 > **Historical design:** this is the original extension-driver plan. The
 > implemented system now uses a shared dual-client coordinator, CDP-first
-> execution, session-scoped fallback, a native MCP bridge, leases, approvals,
+> execution, session-scoped fallback, a native MCP bridge, leases, a queue,
 > and a visible cursor. Use
 > [Browser-control architecture](BROWSER_CONTROL_ARCHITECTURE.md) as the
 > canonical current design and

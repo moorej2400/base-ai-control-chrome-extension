@@ -25,7 +25,7 @@ The system has five non-negotiable properties:
    on-page cursor. CDP uses the final input coordinate; fallback is best-effort
    if its later action injection scrolls or moves the element.
 5. **Policy at the authority boundary.** Protocol validation, host permissions,
-   restricted URLs, leases, approvals, payload limits, and command
+   restricted URLs, leases, payload limits, and command
    serialization are enforced after transport convergence and before page
    execution.
 
@@ -43,7 +43,7 @@ flowchart LR
     native["Native Messaging Port"]
     router["BrowserControlRouter"]
     coordinator["BrowserControlCoordinator"]
-    policy["Sessions · turns · leases<br/>capabilities · approvals · queue"]
+    policy["Sessions · turns · leases<br/>capabilities · queue"]
     resilient["ResilientDriverFactory"]
     cdp["CDP driver<br/>chrome.debugger"]
     fallback["Extension driver<br/>isolated world"]
@@ -77,10 +77,10 @@ an agent loop, page policy, or browser driver.
 |---|---|---|
 | Model-facing tools | Preserve the existing `BrowserDriver` tool contract | `lib/agent-tools/browser-control/module.ts`, `tools/` |
 | Embedded client | Convert driver calls into versioned runtime requests; own embedded session/turn lifecycle | `client/client-driver.ts`, `client/runtime-client.ts` |
-| MCP adapter | Expose 20 MCP tools; lazily own an MCP session and turn | `packages/browser-bridge/src/mcp/` |
+| MCP adapter | Expose 18 MCP tools; lazily own an MCP session and turn | `packages/browser-bridge/src/mcp/` |
 | Transports | Carry validated envelopes without adding browser authority | `background/connection.ts`, `background/native-connection.ts`, `packages/browser-bridge/src/` |
 | Protocol router | Reject malformed or version-mismatched envelopes | `background/router.ts`, `packages/browser-control-protocol/` |
-| Coordinator | Apply lifecycle, ownership, policy, approvals, and per-tab serialization | `background/coordinator.ts` |
+| Coordinator | Apply lifecycle, ownership, policy, and per-tab serialization | `background/coordinator.ts` |
 | Driver seam | Provide a session-bound browser implementation | `driver/types.ts`, `driver/resilient-driver.ts` |
 | CDP engine | Attach, snapshot, resolve references, dispatch trusted input, navigate, wait, and capture | `driver/cdp/` |
 | Fallback engine | Continue the affected session through `chrome.scripting` isolated-world calls | `driver/extension/` |
@@ -170,7 +170,7 @@ debugger execution.
 ## Protocol
 
 The shared package `@ai-page-chat/browser-control-protocol` defines strict Zod
-schemas for requests, responses, commands, errors, approvals, and cursor
+schemas for requests, responses, commands, errors, and cursor
 messages.
 
 Every request contains:
@@ -197,11 +197,10 @@ Command groups are:
 - navigation: navigate and back/forward history
 - actions: click, hover, fill/select, key, scroll, and a maximum 20-operation
   ordered batch
-- approvals: status, resolve, and resume
 - internal/reserved: cursor messages, evaluate, and raw CDP
 
-Only status, tab listing, snapshot, screenshot, page information, and approval
-status are classified as idempotent for reconnect behavior.
+Only status, tab listing, snapshot, screenshot, and page information are
+classified as idempotent for reconnect behavior.
 
 ## Session, turn, and tab ownership
 
@@ -291,8 +290,7 @@ MCP clients.
 
 - Actions return the current URL/title and whether navigation occurred so the
   agent can often avoid a redundant snapshot.
-- Ordered action batches stop on the first failure, navigation, or approval
-  challenge.
+- Ordered action batches stop on the first failure or navigation.
 - Screenshots use JPEG quality 60, retry once at half scale if necessary, and
   are limited to one successful screenshot per browser turn.
 - Snapshot text is capped at 256 KiB. Raw screenshots are capped at 5 MiB and
@@ -342,7 +340,7 @@ second injection that may scroll and recompute geometry. Its cursor is therefore
 best-effort and can drift from the final synthetic-event point when scrolling
 occurs; see [Known boundaries](#known-boundaries).
 
-## Approval and safety model
+## Action and safety model
 
 Safety is layered:
 
@@ -350,27 +348,12 @@ Safety is layered:
 2. The extension must hold host permission for the target origin.
 3. The caller must own an active session, turn, and tab lease.
 4. Advanced evaluation is disabled in the production coordinator.
-5. Every tab-close request requires user approval. The target-aware
-   high-impact classifier exists but is not fully connected; see
-   [Known boundaries](#known-boundaries).
+5. Once browser control is enabled for a client, claimed-tab actions execute
+   without a per-action approval dialog.
 
-The conservative approval classifier is designed to check target role,
-accessible name, and destination for destructive or consequential labels such
-as delete, purchase, pay, send, submit, transfer, publish, sign in, and
-authorize.
-
-An approval challenge:
-
-- expires after two minutes;
-- is bound to session, turn, tab, document revision, and a SHA-256 hash of the
-  exact command;
-- can be approved or rejected only through the separate privileged side-panel
-  approval port;
-- is single-use; and
-- must be resumed by the originating browser session.
-
-The MCP client can inspect its challenge and resume an approved action, but it
-cannot approve its own request.
+The browser-control flag is the explicit authorization boundary. It does not
+remove the restricted-URL, host-permission, session, turn, tab-lease, or
+advanced-evaluation constraints above.
 
 ## Native companion and MCP boundary
 
@@ -416,7 +399,7 @@ The installer deliberately has no automatic delete/uninstall operation.
 | Navigation/document update | Advance document revision | Take a fresh snapshot |
 | Debugger rejected/detached | Activate fallback only for that session | Take a fresh snapshot before another reference action |
 | Cursor hidden/missing | Return hidden, timeout, or unavailable cursor status without blocking forever | Action continues; inspect overlay/permissions if visibility is required |
-| Tab-close action | Return approval challenge | Approve in side panel, then resume the exact action |
+| Tab-close action | Close the caller's claimed tab | Claim the intended tab before closing it |
 | Oversized payload | Reject or downscale within configured caps | Use snapshot/direct tools or reduce captured content |
 | Extension reload | Native host unregisters; stale pending requests fail | Reconnect and establish a fresh session and turn |
 
@@ -445,9 +428,6 @@ These are current implementation limits, not supported recovery guarantees:
   rejects replacement of an orphaned MCP lease, expiry is not scheduled, and
   `McpBrowserSession` does not implement `session.resume`. The affected tab can
   remain blocked until extension/background state is restarted.
-- The resilient driver forwards approval target metadata through both CDP and
-  extension fallback engines. The fallback passes `null`, rather than
-  unserializable `undefined`, for commands without an element reference.
 - Fallback cursor location and fallback action execute in separate script
   injections. The action may call `scrollIntoView` after the cursor coordinate
   was measured, so exact cursor-to-input alignment is guaranteed only on CDP
@@ -473,11 +453,11 @@ These are current implementation limits, not supported recovery guarantees:
 - Chrome displays its normal debugging indicator while CDP is attached.
 
 The settings toggle changes reachability; it does not grant host permissions,
-transfer a tab lease, enable arbitrary evaluation, or bypass approval.
+transfer a tab lease, or enable arbitrary evaluation.
 
 ## MCP tool surface
 
-The companion exposes exactly 20 tools:
+The companion exposes exactly 18 tools:
 
 | Category | Tools |
 |---|---|
@@ -485,7 +465,6 @@ The companion exposes exactly 20 tools:
 | Tabs | `browser_list_tabs`, `browser_claim_tab`, `browser_release_tab`, `browser_new_tab`, `browser_close_tab` |
 | Read/navigation | `browser_navigate`, `browser_snapshot`, `browser_screenshot`, `browser_wait` |
 | Actions | `browser_click`, `browser_hover`, `browser_fill`, `browser_select`, `browser_press_key`, `browser_scroll`, `browser_act_batch` |
-| Approvals | `browser_approval_status`, `browser_resume_approved_action` |
 
 References accepted by action tools are opaque values from the latest valid
 snapshot. A caller must not parse, cache across navigation, or synthesize them.
@@ -513,7 +492,7 @@ A new client transport must:
 - validate with `BrowserControlRouter`;
 - forward disconnect to `BrowserControlCoordinator.disconnect`;
 - preserve request IDs and versioned envelopes; and
-- avoid implementing independent leases, approvals, or driver access.
+- avoid implementing independent leases or driver access.
 
 ### Change cursor behavior
 
@@ -530,11 +509,8 @@ operation before claiming exact alignment.
 entrypoints/
   background.ts                         composition root
   browser-control-overlay.ts            injected cursor entrypoint
-  sidepanel/components/
-    BrowserApprovalPrompt.tsx            privileged approval UI
-
 lib/agent-tools/browser-control/
-  background/                            coordinator and policy
+  background/                            coordinator, leases, queue, and native transport
   client/                                embedded runtime client adapter
   driver/types.ts                        browser driver seam
   driver/cdp/                            primary CDP implementation

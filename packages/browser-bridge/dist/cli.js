@@ -301,7 +301,7 @@ switch (mode) {
       import("./registry-ARDH6KPO.js"),
       import("./paths-YZRQ47EM.js"),
       import("./client-AKY3LSGH.js"),
-      import("./server-WAVGQUNF.js")
+      import("./server-C2T5VQWR.js")
     ]);
     try {
       const instance = await new BridgeRegistry2(bridgePaths2()).select(option("--instance") ?? process.env.AI_PAGE_CHAT_INSTANCE);

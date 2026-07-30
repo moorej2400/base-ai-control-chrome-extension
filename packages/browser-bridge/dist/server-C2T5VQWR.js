@@ -30939,14 +30939,6 @@ function resultToMcpContent(result) {
   return [{ type: "text", text: JSON.stringify(result) }];
 }
 
-// ../browser-control-protocol/src/approval.ts
-var ApprovalDecisionSchema = external_exports.enum(["approve", "reject"]);
-var ApprovalChallengeSchema = external_exports.object({
-  approvalId: external_exports.string().min(1),
-  summary: external_exports.string().min(1),
-  expiresAtMs: external_exports.number().int().positive()
-}).strict();
-
 // ../browser-control-protocol/src/cursor.ts
 var CursorMoveSchema = external_exports.object({
   type: external_exports.literal("cursor.move"),
@@ -31005,9 +30997,6 @@ var BrowserCommandSchema = external_exports.discriminatedUnion("type", [
   external_exports.object({ type: external_exports.literal("page.actBatch"), operations: external_exports.array(BatchOperationSchema).min(1).max(20) }).strict(),
   external_exports.object({ type: external_exports.literal("page.evaluate"), expression: external_exports.string().min(1) }).strict(),
   external_exports.object({ type: external_exports.literal("cdp.execute"), method: external_exports.string().min(1), params: external_exports.record(external_exports.string(), external_exports.unknown()).optional() }).strict(),
-  external_exports.object({ type: external_exports.literal("approval.status") }).strict(),
-  external_exports.object({ type: external_exports.literal("approval.resume"), approvalId: external_exports.string().min(1) }).strict(),
-  external_exports.object({ type: external_exports.literal("approval.resolve"), approvalId: external_exports.string().min(1), decision: ApprovalDecisionSchema }).strict(),
   CursorMoveSchema,
   CursorArrivalSchema
 ]);
@@ -31036,10 +31025,6 @@ var BrowserErrorCodeSchema = external_exports.enum([
   "TARGET_OCCLUDED",
   "CURSOR_UNAVAILABLE",
   "NAVIGATION_INTERRUPTED",
-  "ACTION_REQUIRES_APPROVAL",
-  "APPROVAL_NOT_FOUND",
-  "APPROVAL_REJECTED",
-  "APPROVAL_EXPIRED",
   "INSTANCE_SELECTION_REQUIRED",
   "UNSUPPORTED_OPERATION",
   "PAYLOAD_TOO_LARGE"
@@ -31095,12 +31080,6 @@ var BrowserControlRequestSchema = external_exports.object({
     return;
   }
   if (request.command.type === "browser.status") {
-    return;
-  }
-  if (request.command.type === "approval.resolve") {
-    if (request.browserSessionId || request.turnId) {
-      context.addIssue({ code: "custom", message: "approval.resolve cannot include session or turn identifiers" });
-    }
     return;
   }
   requireSession();
@@ -31197,8 +31176,6 @@ var MCP_TOOL_DEFINITIONS = [
   ["browser_press_key", "Send a key to the claimed tab."],
   ["browser_scroll", "Scroll an opaque reference or the page."],
   ["browser_act_batch", "Run up to 20 ordered browser actions."],
-  ["browser_approval_status", "Read this session\u2019s approval challenge."],
-  ["browser_resume_approved_action", "Resume an approved challenge."],
   ["browser_end_session", "End this MCP browser-control session."]
 ].map(([name, description]) => ({ name, description }));
 function commandForTool(name, args) {
@@ -31237,10 +31214,6 @@ function commandForTool(name, args) {
       return { type: "page.scroll", ref: args.ref, deltaY: args.deltaY };
     case "browser_act_batch":
       return { type: "page.actBatch", operations: args.operations };
-    case "browser_approval_status":
-      return { type: "approval.status" };
-    case "browser_resume_approved_action":
-      return { type: "approval.resume", approvalId: args.approvalId };
     case "browser_end_session":
       return { type: "session.end" };
     default:
@@ -31253,8 +31226,22 @@ var anyToolInput = external_exports.object({}).passthrough();
 function createBrowserMcpServer(client) {
   const session = new McpBrowserSession(client);
   const server = new McpServer({ name: "ai-page-chat-browser", version: "0.1.0" });
+  let resolveClosed;
+  let rejectClosed;
+  const closed = new Promise((resolve, reject) => {
+    resolveClosed = resolve;
+    rejectClosed = reject;
+  });
+  let closing;
+  const close = () => {
+    closing ??= session.close().then(resolveClosed, (error51) => {
+      rejectClosed(error51);
+      throw error51;
+    });
+    return closing;
+  };
   server.server.onclose = () => {
-    void session.close().catch(() => {
+    void close().catch(() => {
     });
   };
   for (const definition of MCP_TOOL_DEFINITIONS) {
@@ -31267,12 +31254,24 @@ function createBrowserMcpServer(client) {
       return { content: resultToMcpContent(result) };
     });
   }
-  return server;
+  return { server, closed, close };
 }
 async function runBrowserMcp(client) {
-  const server = createBrowserMcpServer(client);
-  await server.connect(new StdioServerTransport());
-  process.stderr.write("[ai-page-chat-browser] MCP stdio server ready\n");
+  const runtime = createBrowserMcpServer(client);
+  const terminate = () => {
+    void runtime.close().catch(() => {
+    });
+  };
+  process.once("SIGTERM", terminate);
+  process.once("SIGINT", terminate);
+  try {
+    await runtime.server.connect(new StdioServerTransport());
+    process.stderr.write("[ai-page-chat-browser] MCP stdio server ready\n");
+    await runtime.closed;
+  } finally {
+    process.removeListener("SIGTERM", terminate);
+    process.removeListener("SIGINT", terminate);
+  }
 }
 export {
   createBrowserMcpServer,
